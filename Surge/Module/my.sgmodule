@@ -1,0 +1,2 @@
+[General]
+skip-proxy = %APPEND% *.t3go.cn
