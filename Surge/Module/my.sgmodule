@@ -6,5 +6,8 @@ skip-proxy = %APPEND% *.t3go.cn
 [Script]
 cron "0 7 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/tieba/tieba.js
 
+[Rule]
+DOMAIN,emby.nexitally.com,🌍 国外媒体
+
 [MITM]
 hostname = %APPEND% tieba.baidu.com
