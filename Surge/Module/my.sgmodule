@@ -1,7 +1,7 @@
 #!name=my module
 #!desc=个人使用合集
 [General]
-skip-proxy = %APPEND% *.t3go.cn
+skip-proxy = %APPEND% *.t3go.cn,*.jiguang.cn
 
 [Script]
 cron "0 7 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/tieba/tieba.js
