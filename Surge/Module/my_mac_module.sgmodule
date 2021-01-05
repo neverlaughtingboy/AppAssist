@@ -1,4 +1,4 @@
-#!name=my_pc_module
+#!name=my_mac_module
 #!desc=个人使用合集（mac端）
 [General]
 skip-proxy = %APPEND% *.jiguang.cn,*.getui.com
