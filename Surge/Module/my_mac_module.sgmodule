@@ -1,7 +1,7 @@
 #!name=my_mac_module
 #!desc=个人使用合集（mac端）
 [General]
-skip-proxy = %APPEND% *.jiguang.cn,*.getui.com
+skip-proxy = %APPEND% *.jiguang.cn,*.getui.com,*.xiaobao100.com
 
 [Script]
 
@@ -9,4 +9,3 @@ skip-proxy = %APPEND% *.jiguang.cn,*.getui.com
 DOMAIN,emby.nexitally.com,🌍 国外媒体
 
 [MITM]
-hostname = %APPEND% tieba.baidu.com
