@@ -1,11 +1,11 @@
 #!name=my_mac_module
 #!desc=个人使用合集（mac端）
 [General]
-skip-proxy = %APPEND% *.jiguang.cn,*.getui.com,*.xiaobao100.com,*.jpush.cn
-
+skip-proxy = %APPEND% *.jiguang.cn,*.getui.com,*.xiaobao100.com
 [Script]
 
 [Rule]
 DOMAIN,emby.nexitally.com,🌍 国外媒体
+DOMAIN-SUFFIX,jpush.cn,DIRECT
 
 [MITM]
