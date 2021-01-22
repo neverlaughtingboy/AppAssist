@@ -19,6 +19,7 @@ DOMAIN,emby.nexitally.com,🌍 国外媒体
 #华宝证券鬼畜调用
 DOMAIN,stats.jpush.cn,DIRECT
 DOMAIN,ali-stats.jpush.cn,DIRECT
+DOMAIN,gd-stats.jpush.cn,DIRECT
 DOMAIN,hmma.baidu.com,DIRECT
 
 [MITM]
