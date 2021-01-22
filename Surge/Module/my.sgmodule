@@ -21,6 +21,8 @@ DOMAIN,stats.jpush.cn,DIRECT
 DOMAIN,ali-stats.jpush.cn,DIRECT
 DOMAIN,gd-stats.jpush.cn,DIRECT
 DOMAIN,hmma.baidu.com,DIRECT
+#高德地图鬼畜调用
+DOMAIN,page.amap.com,DIRECT
 
 [MITM]
 hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com
