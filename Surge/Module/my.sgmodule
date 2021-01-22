@@ -1,7 +1,7 @@
 #!name=my module
 #!desc=个人使用合集
 [General]
-skip-proxy = %APPEND% *.t3go.cn,*.jiguang.cn,*.jpush.cn,183.232.25.151
+skip-proxy = %APPEND% *.t3go.cn,*.jiguang.cn,*.jpush.cn
 
 [Script]
 #贴吧签到
