@@ -1,7 +1,7 @@
 #!name=my module
 #!desc=个人使用合集
 [General]
-skip-proxy = %APPEND% *.t3go.cn,*.jiguang.cn,*.jpush.cn
+skip-proxy = %APPEND% *.t3go.cn,*.jiguang.cn
 
 [Script]
 #贴吧签到
@@ -16,6 +16,10 @@ nf_rating_season.js = type=http-response,pattern=^https?://ios\.prod\.ftl\.netfl
 
 [Rule]
 DOMAIN,emby.nexitally.com,🌍 国外媒体
+#华宝证券鬼畜调用
+DOMAIN,stats.jpush.cn,DIRECT
+DOMAIN,ali-stats.jpush.cn,DIRECT
+DOMAIN,hmma.baidu.com,DIRECT
 
 [MITM]
 hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com
