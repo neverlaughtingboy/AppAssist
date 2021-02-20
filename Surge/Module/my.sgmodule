@@ -25,4 +25,4 @@ DOMAIN,hmma.baidu.com,DIRECT
 DOMAIN,page.amap.com,DIRECT
 
 [MITM]
-hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com
+hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com,music.163.com, *.music.163.com
