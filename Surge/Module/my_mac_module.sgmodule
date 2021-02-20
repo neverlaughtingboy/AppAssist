@@ -9,3 +9,4 @@ DOMAIN,emby.nexitally.com,🇺🇲 美国节点
 DOMAIN-SUFFIX,jpush.cn,DIRECT
 
 [MITM]
+hostname = %APPEND% music.163.com, *.music.163.com
