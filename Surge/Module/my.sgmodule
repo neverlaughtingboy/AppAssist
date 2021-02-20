@@ -5,7 +5,8 @@ skip-proxy = %APPEND% *.t3go.cn,*.jiguang.cn
 
 [Script]
 #贴吧签到
-cron "0 7 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/tieba/tieba.js
+http-request ^https?:\/\/tieba\.baidu\.com\/?.? script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/tieba/tieba.cookie.js
+cron "0 9 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/tieba/tieba.js
 #微信重定向
 wechat_redirect.js = type=http-response, requires-body=1, pattern=^https?:\/\/weixin110\.qq\.com\/cgi-bin\/mmspamsupport-bin\/newredirectconfirmcgi,script-path=https://raw.githubusercontent.com/neverlaughtingboy/AppAssist/master/Surge/Script/wechat_redirect.js
 #奈飞评分
@@ -34,8 +35,6 @@ DOMAIN,gd-stats.jpush.cn,DIRECT
 DOMAIN,hmma.baidu.com,DIRECT
 #高德地图鬼畜调用
 DOMAIN,page.amap.com,DIRECT
-#BoxJS
-DOMAIN,boxjs.com,🚀 节点选择
 
 [MITM]
 hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com,music.163.com, *.music.163.com,*.bilibili.com,*.smzdm.com
