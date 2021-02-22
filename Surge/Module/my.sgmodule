@@ -21,6 +21,8 @@ nf_rating_season.js = type=http-response,pattern=^https?://ios\.prod\.ftl\.netfl
 cron "10 9 0 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/neteasemusic/neteasemusic.js
 #什么值得买
 cron "10 9 0 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/smzdm/smzdm.js
+#爱奇异签到
+cron "0 9 * * *" script-path=https://raw.githubusercontent.com/NobyDa/Script/master/iQIYI-DailyBonus/iQIYI.js
 
 [Rule]
 DOMAIN,emby.nexitally.com,🇺🇲 美国节点
@@ -33,4 +35,4 @@ DOMAIN,hmma.baidu.com,DIRECT
 DOMAIN,page.amap.com,DIRECT
 
 [MITM]
-hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com,music.163.com, *.music.163.com,*.bilibili.com,*.smzdm.com
+hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com,music.163.com, *.music.163.com,*.bilibili.com,*.smzdm.com,ifac*.iqiyi.com
