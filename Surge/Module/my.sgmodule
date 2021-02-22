@@ -14,9 +14,9 @@ http-response ^https?://ios\.prod\.ftl\.netflix\.com/iosui/user/.+path=%5B%22vid
 # 单集评分
 nf_rating_season.js = type=http-response,pattern=^https?://ios\.prod\.ftl\.netflix\.com/iosui/warmer/.+type=show-ath,requires-body=1,max-size=0,script-path=https://raw.githubusercontent.com/yichahucha/surge/master/nf_rating_season.js
 #bilibili
-cron "10 9 0 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/bilibili/bilibili.js
+# cron "10 9 0 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/bilibili/bilibili.js
 # 如需银瓜子转硬币，添加以下内容 
-cron "10 9 0 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/bilibili/bilibili.silver2coin.js
+# cron "10 9 0 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/bilibili/bilibili.silver2coin.js
 #网易云音乐
 cron "10 9 0 * * *" script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/neteasemusic/neteasemusic.js
 #什么值得买
@@ -31,7 +31,6 @@ DOMAIN,gd-stats.jpush.cn,DIRECT
 DOMAIN,hmma.baidu.com,DIRECT
 #高德地图鬼畜调用
 DOMAIN,page.amap.com,DIRECT
-DOMAIN,raw.githubusercontent.com,🚀 节点选择
 
 [MITM]
 hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com,music.163.com, *.music.163.com,*.bilibili.com,*.smzdm.com
