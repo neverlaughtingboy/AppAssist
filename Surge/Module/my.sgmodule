@@ -31,7 +31,6 @@ cron "0 9 * * *" script-path=https://raw.githubusercontent.com/chavyleung/script
 京东多合一签到 = type=cron,cronexp=0 9 * * *,wake-system=1,timeout=60,script-path=https://raw.githubusercontent.com/NobyDa/Script/master/JD-DailyBonus/JD_DailyBonus.js
 
 [Rule]
-DOMAIN,emby.nexitally.com,🇺🇲 美国节点
 #华宝证券鬼畜调用
 DOMAIN,stats.jpush.cn,DIRECT
 DOMAIN,ali-stats.jpush.cn,DIRECT
@@ -39,6 +38,8 @@ DOMAIN,gd-stats.jpush.cn,DIRECT
 DOMAIN,hmma.baidu.com,DIRECT
 #高德地图鬼畜调用
 DOMAIN,page.amap.com,DIRECT
+#emby
+DOMAIN-KEYWORD, emby, 🎞 Emby节点
 
 [MITM]
 hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com,music.163.com, *.music.163.com,*.bilibili.com,*.smzdm.com,ifac*.iqiyi.com,*.video.qq.com
