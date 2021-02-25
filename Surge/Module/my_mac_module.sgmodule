@@ -5,7 +5,7 @@ skip-proxy = %APPEND% *.jiguang.cn,*.getui.com,*.xiaobao100.com
 [Script]
 
 [Rule]
-DOMAIN,emby.nexitally.com,🇺🇲 美国节点
+DOMAIN-KEYWORD,emby,🎞 Emby节点
 DOMAIN-SUFFIX,jpush.cn,DIRECT
 
 [MITM]
