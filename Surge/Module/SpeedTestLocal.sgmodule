@@ -1,0 +1,4 @@
+#!name=SpeedTestLocal
+#!desc=speedtest本地网络测试
+[General]
+skip-proxy = %APPEND% *.speedtest.net
