@@ -42,4 +42,4 @@ DOMAIN,page.amap.com,DIRECT
 DOMAIN-KEYWORD,emby,🎞 Emby节点
 
 [MITM]
-hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com,music.163.com, *.music.163.com,*.bilibili.com,*.smzdm.com,ifac*.iqiyi.com,*.video.qq.com
+hostname = %APPEND% tieba.baidu.com,weixin110.qq.com,ios.prod.ftl.netflix.com,music.163.com, *.music.163.com,*.bilibili.com,*.smzdm.com,ifac*.iqiyi.com,*.video.qq.com,wx.10086.cn
