@@ -8,7 +8,7 @@ skip-proxy = %APPEND% *.jiguang.cn,*.getui.com,*.xiaobao100.com,*.xiaobaoonline.
 DOMAIN-KEYWORD,emby,🎞 Emby节点
 DOMAIN-SUFFIX,jpush.cn,DIRECT
 #apple系统自带地图，走代理导航会有问题
-DOMAIN,weather-data.apple.com,DIRECT
+PROCESS-NAME,/System/Library/PrivateFrameworks/GeoServices.framework/Versions/A/XPCServices/com.apple.geod.xpc/Contents/MacOS/com.apple.geod,DIRECT
 
 [MITM]
 hostname = %APPEND% music.163.com, *.music.163.com
