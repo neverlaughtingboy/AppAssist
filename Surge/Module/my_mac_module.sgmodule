@@ -4,7 +4,7 @@
 skip-proxy = %APPEND% *.jiguang.cn,*.getui.com,*.xiaobao100.com,*.xiaobaoonline.com,*.schoolpal.cn,*.greedyint.com
 [Script]
 #微信重定向
-wechat_redirect.js = type=http-response, requires-body=1, pattern=^https?:\/\/weixin110\.qq\.com\/cgi-bin\/mmspamsupport-bin\/newredirectconfirmcgi,script-path=https://raw.githubusercontent.com/neverlaughtingboy/AppAssist/master/Surge/Script/wechat_redirect.js
+wechat_redirect.js = type=http-response, requires-body=1, pattern=^https?:\/\/weixin110\.qq\.com\/cgi-bin\/mmspamsupport-bin\/newredirectconfirmcgi,script-path=https://raw.githubusercontent.com/neverlaughtingboy/AppAssist/master/Surge/Script/wechat_redirect_mac.js
 
 [Rule]
 DOMAIN-KEYWORD,emby,🎞 Emby节点
