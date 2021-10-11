@@ -1,4 +1,4 @@
 #!name=mitm_all
-#!desc=开启mitm域名
+#!desc=开启所有域名的mitm
 [MITM]
 hostname = *
