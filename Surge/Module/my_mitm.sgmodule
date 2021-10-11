@@ -1,4 +1,0 @@
-#!name=my_mitm
-#!desc=自定义mitm域名
-[MITM]
-hostname = %APPEND% *.schoolpal.cn

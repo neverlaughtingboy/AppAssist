@@ -1,0 +1,4 @@
+#!name=mitm_all
+#!desc=开启mitm域名
+[MITM]
+hostname = *
