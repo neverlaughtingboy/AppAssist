@@ -1,0 +1,4 @@
+#!name=Advertising Fix
+#!desc=命中广告错误拦截修复（mac端）
+[Rule]
+DOMAIN,cloudmonitornext.console.aliyun.com,DIRECT
