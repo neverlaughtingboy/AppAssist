@@ -2,3 +2,4 @@
 #!desc=命中广告错误拦截修复
 [Rule]
 DOMAIN,cloudmonitornext.console.aliyun.com,DIRECT
+DOMAIN,mtalk.google.com,🛫 节点选择
