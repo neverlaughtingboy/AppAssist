@@ -1,4 +1,3 @@
 # NAME: customize_direct
 #影响PC端淘宝打开商品详情页
-DOMAIN,hd.mmstat.com
 DOMAIN,+.click.simba.taobao.com
