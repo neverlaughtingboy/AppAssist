@@ -1,0 +1,6 @@
+# NAME: customize_proxy
+#E5订阅刷新服务
+DOMAIN-SUFFIX,qyi.io
+#奶昔官网
+DOMAIN-SUFFIX,naixisubs.com
+DOMAIN-SUFFIX,nexitallysafe.com
