@@ -4,3 +4,5 @@ DOMAIN-SUFFIX,qyi.io
 #奶昔官网
 DOMAIN-SUFFIX,naixisubs.com
 DOMAIN-SUFFIX,nexitallysafe.com
+#检测软件对arm芯片的支持
+DOMAIN-SUFFIX,doesitarm.com
