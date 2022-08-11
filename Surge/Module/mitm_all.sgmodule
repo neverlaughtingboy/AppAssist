@@ -1,4 +1,4 @@
 #!name=Mitm All
 #!desc=开启所有域名的mitm
 [MITM]
-hostname = *
+hostname = %APPEND% *
