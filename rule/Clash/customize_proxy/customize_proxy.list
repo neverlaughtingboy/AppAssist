@@ -8,3 +8,4 @@ DOMAIN-SUFFIX,nexitallysafe.com
 DOMAIN-SUFFIX,doesitarm.com
 #开发者小工具网站（主要在用正则匹配）
 DOMAIN-SUFFIX,devtoolcafe.com
+DOMAIN,mtalk.google.com
