@@ -14,5 +14,5 @@ https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/script/zhi
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/script/smzdm/smzdm_remove_ads.sgmodule
 # 去广告 mitm
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/AdvertisingLite/AdvertisingLite_MITM.sgmodule
-# 微信跳转限制，如果需要使用该模块，要注释掉另外一个模块里的对应脚本
+# 微信跳转限制，如果需要使用该模块，要注释掉 my.sgmodule 里对应脚本
 https://raw.githubusercontent.com/zZPiglet/Task/master/UnblockURLinWeChat.sgmodule
