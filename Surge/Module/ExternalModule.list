@@ -12,3 +12,5 @@ https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/external/S
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/script/zhihu/zhihu_plus.sgmodule
 # 什么值得买去广告
 https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/script/smzdm/smzdm_remove_ads.sgmodule
+# 去广告 mitm
+https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/AdvertisingLite/AdvertisingLite_MITM.sgmodule
