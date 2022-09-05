@@ -10,5 +10,7 @@ DOMAIN-SUFFIX,doesitarm.com
 DOMAIN-SUFFIX,devtoolcafe.com
 #谷歌某服务
 DOMAIN,mtalk.google.com
-# 友和香港
+# 友和香港，购买 switch 手柄的类淘宝网站
 DOMAIN-SUFFIX,yohohongkong.com
+# 2000Fun 商城，购买 switch 手柄的类淘宝网站
+DOMAIN-SUFFIX,openshop.com.hk
