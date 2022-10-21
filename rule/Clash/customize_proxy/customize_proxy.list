@@ -14,3 +14,5 @@ DOMAIN,mtalk.google.com
 DOMAIN-SUFFIX,yohohongkong.com
 # 2000Fun 商城，购买 switch 手柄的类淘宝网站
 DOMAIN-SUFFIX,openshop.com.hk
+# v2rayssr.com
+DOMAIN-SUFFIX,v2rayssr.com
