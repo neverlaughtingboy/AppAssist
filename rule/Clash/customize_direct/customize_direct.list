@@ -1,4 +1,5 @@
 # NAME: customize_direct
 #影响PC端淘宝打开商品详情页
 DOMAIN,+.click.simba.taobao.com
+#阿里巴巴旗下产品的数据统计域名，拒绝的话钉钉会卡
 DOMAIN,gm.mmstat.com
