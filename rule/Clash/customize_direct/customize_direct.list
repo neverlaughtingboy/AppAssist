@@ -3,3 +3,4 @@
 DOMAIN,+.click.simba.taobao.com
 #阿里巴巴旗下产品的数据统计域名，拒绝的话钉钉会卡
 DOMAIN,gm.mmstat.com
+DOMAIN,log.mmstat.com
