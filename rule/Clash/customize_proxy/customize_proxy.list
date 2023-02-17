@@ -17,3 +17,9 @@ DOMAIN-SUFFIX,yohohongkong.com
 DOMAIN-SUFFIX,openshop.com.hk
 # v2rayssr.com
 DOMAIN-SUFFIX,v2rayssr.com
+# plex
+DOMAIN,app.plex.tv
+# 甲骨文
+DOMAIN-SUFFIX,oracle.com
+# ebay
+DOMAIN-SUFFIX,ebay.com
