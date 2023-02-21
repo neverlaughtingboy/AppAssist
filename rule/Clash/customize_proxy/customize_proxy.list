@@ -23,3 +23,5 @@ DOMAIN,app.plex.tv
 DOMAIN-SUFFIX,oracle.com
 # ebay
 DOMAIN-SUFFIX,ebay.com
+# 换 mac 图标的搜索域名
+DOMAIN-SUFFIX,algolianet.com
