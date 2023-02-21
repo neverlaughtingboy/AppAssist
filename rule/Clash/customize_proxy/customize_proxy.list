@@ -25,3 +25,5 @@ DOMAIN-SUFFIX,oracle.com
 DOMAIN-SUFFIX,ebay.com
 # 换 mac 图标的搜索域名
 DOMAIN-SUFFIX,algolianet.com
+# erlang
+DOMAIN,erlang.org
