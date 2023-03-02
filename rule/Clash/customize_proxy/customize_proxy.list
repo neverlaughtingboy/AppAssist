@@ -28,4 +28,5 @@ DOMAIN-SUFFIX,algolianet.com
 # erlang
 DOMAIN,erlang.org
 # 罗技
-DOMAIN-SUFFIX,logi.com
+DOMAIN-KEYWORD,logi.com
+DOMAIN-KEYWORD,logitech
