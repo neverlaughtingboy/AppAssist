@@ -27,3 +27,5 @@ DOMAIN-SUFFIX,ebay.com
 DOMAIN-SUFFIX,algolianet.com
 # erlang
 DOMAIN,erlang.org
+# 罗技
+DOMAIN-SUFFIX,logi.com
