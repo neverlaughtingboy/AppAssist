@@ -21,6 +21,7 @@ DOMAIN-SUFFIX,v2rayssr.com
 DOMAIN,app.plex.tv
 # 甲骨文
 DOMAIN-SUFFIX,oracle.com
+DOMAIN-SUFFIX,oraclecloud.com
 # ebay
 DOMAIN-SUFFIX,ebay.com
 # 换 mac 图标的搜索域名
