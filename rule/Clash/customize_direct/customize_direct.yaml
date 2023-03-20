@@ -1,4 +1,4 @@
 payload:
-  - '+.click.simba.taobao.com'
-  - 'gm.mmstat.com'
-  - 'log.mmstat.com'
+  - DOMAIN-SUFFIX,click.simba.taobao.com
+  - DOMAIN,gm.mmstat.com
+  - DOMAIN,log.mmstat.com
