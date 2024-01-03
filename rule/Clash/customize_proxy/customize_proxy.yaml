@@ -18,4 +18,5 @@ payload:
   - DOMAIN-KEYWORD,logi.com
   - DOMAIN-KEYWORD,logitech
   - DOMAIN-KEYWORD,bulianglin.com
+  - DOMAIN-SUFFIX,docker.io
   - DOMAIN-SUFFIX,onekey.so
