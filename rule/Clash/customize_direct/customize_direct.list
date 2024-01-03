@@ -13,5 +13,8 @@ DOMAIN,hmma.baidu.com
 DOMAIN,page.amap.com
 # mistong
 DOMAIN-SUFFIX,mistong.com
+# dangbei
+DOMAIN-SUFFIX,dangbei.net
+# 163 game
 DOMAIN-SUFFIX,game.163.com
 
