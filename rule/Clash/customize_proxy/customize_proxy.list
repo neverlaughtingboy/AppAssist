@@ -29,7 +29,11 @@ DOMAIN-SUFFIX,algolianet.com
 # erlang
 DOMAIN,erlang.org
 # 罗技
-DOMAIN-KEYWORD,logi.com
+DOMAIN-SUFFIX,logi.com
 DOMAIN-KEYWORD,logitech
 # 不良林 油管网络科普up主
-DOMAIN-KEYWORD,bulianglin.com
+DOMAIN-SUFFIX,bulianglin.com
+# docker
+DOMAIN-SUFFIX,docker.io
+# onekey card
+DOMAIN-SUFFIX,onekey.so
