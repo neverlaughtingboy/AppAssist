@@ -4,3 +4,13 @@ DOMAIN,+.click.simba.taobao.com
 #阿里巴巴旗下产品的数据统计域名，拒绝的话钉钉会卡
 DOMAIN,gm.mmstat.com
 DOMAIN,log.mmstat.com
+#华宝证券鬼畜调用
+DOMAIN,stats.jpush.cn
+DOMAIN,ali-stats.jpush.cn
+DOMAIN,gd-stats.jpush.cn
+DOMAIN,hmma.baidu.com
+#高德地图鬼畜调用
+DOMAIN,page.amap.com
+# mistong
+DOMAIN-SUFFIX,mistong.com
+
