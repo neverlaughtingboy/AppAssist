@@ -2,5 +2,11 @@ payload:
   - DOMAIN-SUFFIX,click.simba.taobao.com
   - DOMAIN,gm.mmstat.com
   - DOMAIN,log.mmstat.com
+  - DOMAIN,stats.jpush.cn
+  - DOMAIN,ali-stats.jpush.cn
+  - DOMAIN,gd-stats.jpush.cn
+  - DOMAIN,hmma.baidu.com
+  - DOMAIN,page.amap.com
+  - DOMAIN-SUFFIX,mistong.com
   - DOMAIN-SUFFIX,dangbei.net
   - DOMAIN-SUFFIX,game.163.com
