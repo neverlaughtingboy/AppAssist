@@ -12,5 +12,5 @@ DOMAIN,hmma.baidu.com
 #高德地图鬼畜调用
 DOMAIN,page.amap.com
 # mistong
-DOMAIN-SUFFIX,+.mistong.com
+DOMAIN-SUFFIX,.mistong.com
 
