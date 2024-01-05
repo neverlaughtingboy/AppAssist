@@ -1,0 +1,10 @@
+{
+  "version": 2024010501,
+  "rules": [
+    {
+      "domain": [
+        "bard.google.com"
+      ]
+    }
+  ]
+}
