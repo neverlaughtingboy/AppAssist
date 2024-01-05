@@ -1,0 +1,11 @@
+{
+  "version": 2024010501,
+  "rules": [
+    {
+      "domain_suffix": [
+        ".mistong.com",
+        ".dangbei.net"
+      ]
+    }
+  ]
+}
