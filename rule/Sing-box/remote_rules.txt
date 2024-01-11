@@ -1,0 +1,17 @@
+https://testingcf.jsdelivr.net/gh/neverlaughtingboy/AppAssist@master/rule/Sing-box/us_only.json
+https://testingcf.jsdelivr.net/gh/neverlaughtingboy/AppAssist@master/rule/Sing-box/customize_proxy.json
+https://testingcf.jsdelivr.net/gh/neverlaughtingboy/AppAssist@master/rule/Sing-box/customize_direct.json
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/OpenAI.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Apple.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Microsoft.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/BiliBili.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Steam.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Epic.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Netflix.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Disney.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/HBO.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Nvidia.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/ChinaMax.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Global.srs
+https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/bm7/Advertising.srs
+
