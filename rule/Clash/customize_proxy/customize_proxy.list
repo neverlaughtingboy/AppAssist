@@ -37,3 +37,5 @@ DOMAIN-SUFFIX,bulianglin.com
 DOMAIN-SUFFIX,docker.io
 # onekey card
 DOMAIN-SUFFIX,onekey.so
+# wildcard
+DOMAIN-SUFFIX,bewildcard.com
