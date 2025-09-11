@@ -46,7 +46,7 @@
       {"inbound": "dns-in", "action": "hijack-dns"},
       {"ip_is_private": true, "outbound": "direct"},
       {"clash_mode": "direct", "outbound": "direct"},
-      {"clash_mode": "global", "outbound": "GLOBAL"},
+      {"clash_mode": "global", "outbound": "proxy"},
       {"rule_set":"us_only","outbound":"🇺🇲 美国节点"},
       {"rule_set":"customize_proxy","outbound":"proxy"},
       {"rule_set":"customize_direct","outbound":"direct"},
