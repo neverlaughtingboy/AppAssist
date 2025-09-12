@@ -35,7 +35,7 @@
     {"tag":"🎮 Nvidia","type":"selector","outbounds":["direct","proxy","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
     {"tag":"🪟 Microsoft","type":"selector","outbounds":["direct","proxy","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
     {"tag":"🍎 Apple","type":"selector","outbounds":["direct","proxy","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
-    {"tag":"🤖 OpenAI","type":"selector","outbounds":["🇺🇲 美国节点"]},
+    {"tag":"🤖 OpenAI","type":"selector","outbounds":["{all}"],"filter":[{"action":"include","keywords":["美|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥|US|United States"]},{"action":"exclude","keywords":["Premium|海外"]}]},
     {"tag":"🤖 Claude","type":"selector","outbounds":["{all}"],"filter":[{"action":"include","keywords":["新加坡|坡|狮城|SG|Singapore"]},{"action":"include","keywords":["DIP"]},{"action":"exclude","keywords":["Premium|海外"]}]},
     {"type":"selector","tag":"🐟 漏网之鱼","outbounds":["direct","proxy","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
     {"type":"direct","tag":"direct"}
