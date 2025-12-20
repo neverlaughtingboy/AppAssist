@@ -14,7 +14,7 @@
       {"query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1}
     ],
     "final": "foreign",
-    "strategy": "perfer_ipv6",
+    "strategy": "prefer_ipv6",
     "independent_cache": true,
     "reverse_mapping": true
   },
