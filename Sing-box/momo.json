@@ -11,7 +11,7 @@
       {"clash_mode": "direct", "server": "local"},
       {"clash_mode": "global", "server": "fakeip"},
       {"query_type": "HTTPS", "action": "reject"},
-      {"rule_set": ["geosite-steam"], "server": "ipv4_dns"},
+      {"rule_set": ["geosite-steam"], "server": "foreign"},
       {"rule_set": ["geosite-cn"], "server": "local"},
       {"query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1}
     ],
@@ -49,7 +49,6 @@
       {"ip_is_private": true, "outbound": "direct"},
       {"clash_mode": "direct", "outbound": "direct"},
       {"clash_mode": "global", "outbound": "proxy"},
-      {"rule_set":"geosite-steam","action": "resolve","strategy": "ipv4_only"},
       {"rule_set":"us_only","outbound":"🇺🇲 美国节点"},
       {"rule_set":"customize_proxy","outbound":"proxy"},
       {"rule_set":"customize_direct","outbound":"direct"},
