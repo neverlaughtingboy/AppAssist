@@ -14,7 +14,7 @@
       {"query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1}
     ],
     "final": "foreign",
-    "strategy": "ipv4_only",
+    "strategy": "perfer_ipv6",
     "independent_cache": true,
     "reverse_mapping": true
   },
@@ -47,6 +47,7 @@
       {"ip_is_private": true, "outbound": "direct"},
       {"clash_mode": "direct", "outbound": "direct"},
       {"clash_mode": "global", "outbound": "proxy"},
+      {"rule_set":"geosite-steam","action": "resolve","strategy": "ipv4_only"},
       {"rule_set":"us_only","outbound":"🇺🇲 美国节点"},
       {"rule_set":"customize_proxy","outbound":"proxy"},
       {"rule_set":"customize_direct","outbound":"direct"},
