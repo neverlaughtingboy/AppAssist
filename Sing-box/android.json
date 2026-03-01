@@ -143,7 +143,7 @@
   "experimental": {
     "cache_file": {
       "enabled": true,
-      "path": "/sing-box-cache/cache.db",
+      "path": "sing-box-cache.db",
       "store_fakeip": true
     },
     "clash_api": {
