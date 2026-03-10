@@ -1,0 +1,169 @@
+{
+  "dns": {
+    "servers": [
+      {"tag": "local", "type": "udp", "server": "223.5.5.5"},
+      {"tag": "public", "type": "https", "server": "dns.alidns.com", "domain_resolver": "local"},
+      {"tag": "foreign", "type": "https", "server": "8.8.8.8", "detour": "proxy"},
+      {"tag": "fakeip", "type": "fakeip", "inet4_range": "198.18.0.0/15", "inet6_range": "fc00::/18"}
+    ],
+    "rules": [
+      {"clash_mode": "direct", "server": "local"},
+      {"clash_mode": "global", "server": "fakeip"},
+      {"query_type": "HTTPS", "action": "reject"},
+      {"rule_set": ["geosite-steam"], "server": "foreign"},
+      {"rule_set": ["geosite-cn"], "server": "local"},
+      {"query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1}
+    ],
+    "final": "foreign",
+    "strategy": "prefer_ipv6",
+    "independent_cache": true,
+    "reverse_mapping": true
+  },
+  "outbounds": [
+    {"tag":"proxy","type":"selector","outbounds":["手动选择","direct"]},
+    {"tag":"手动选择","type":"selector","outbounds":["🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点","可用节点"]},
+    {"tag":"可用节点","type":"selector","outbounds":[]},
+    {"tag":"🇭🇰 香港 Warp 落地","type":"selector","outbounds":[]},
+    {"tag":"🇯🇵 日本 Warp 落地","type":"selector","outbounds":[]},
+    {"tag":"🇺🇲 美国 Warp 落地","type":"selector","outbounds":[]},
+    {"tag":"🇸🇬 狮城 Warp 落地","type":"selector","outbounds":[]},
+    {"tag":"🇨🇳 台湾 Warp 落地","type":"selector","outbounds":[]},    
+    {"tag":"🇭🇰 香港节点","type":"selector","outbounds":[]},
+    {"tag":"🇯🇵 日本节点","type":"selector","outbounds":[]},
+    {"tag":"🇺🇲 美国节点","type":"selector","outbounds":[]},
+    {"tag":"🇸🇬 狮城节点","type":"selector","outbounds":[]},
+    {"tag":"🇨🇳 台湾节点","type":"selector","outbounds":[]},
+    {"tag":"🎥 奈飞视频","type":"selector","outbounds":["proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag":"🏰 Disney","type":"selector","outbounds":["proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag":"🎥 HBO","type":"selector","outbounds":["proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag":"📺 Bilibili","type":"selector","outbounds":["direct","🇭🇰 香港 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇨🇳 台湾节点"]},
+    {"tag":"🎮 Steam","type":"selector","outbounds":["direct","proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag":"🕹️ Epic","type":"selector","outbounds":["direct","proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag":"🎮 Nvidia","type":"selector","outbounds":["direct","proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag":"🪟 Microsoft","type":"selector","outbounds":["direct","proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag":"🍎 Apple","type":"selector","outbounds":["direct","proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag":"🤖 OpenAI","type":"selector","outbounds":[]},
+    {"tag":"🤖 Claude","type":"selector","outbounds":[]},
+    {"type":"selector","tag":"🐟 漏网之鱼","outbounds":["direct","proxy","🇭🇰 香港 Warp 落地","🇯🇵 日本 Warp 落地","🇺🇲 美国 Warp 落地","🇸🇬 狮城 Warp 落地","🇨🇳 台湾 Warp 落地","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"type":"direct","tag":"direct"}
+  ],
+  "route": {
+    "rules": [
+      {"action": "sniff", "sniffer": ["http", "tls", "quic", "dns"]},
+      {"inbound": "dns-in", "action": "hijack-dns"},
+      {"ip_is_private": true, "outbound": "direct"},
+      {"clash_mode": "direct", "outbound": "direct"},
+      {"clash_mode": "global", "outbound": "proxy"},
+      {"rule_set":"us_only","outbound":"🇺🇲 美国节点"},
+      {"rule_set":"customize_proxy","outbound":"proxy"},
+      {"rule_set":"customize_direct","outbound":"direct"},
+      {"rule_set":"openai","outbound":"🤖 OpenAI"},
+      {"rule_set":["claude","claude_additional"],"outbound":"🤖 Claude"},
+      {"rule_set":["geosite-netflix","geoip-netflix"],"outbound":"🎥 奈飞视频"},
+      {"rule_set":"geosite-disney","outbound":"🏰 Disney"},
+      {"rule_set":"geosite-hbo","outbound":"🎥 HBO"},
+      {"rule_set":["geosite-bilibili","geoip-bilibili"],"outbound":"📺 Bilibili"},
+      {"rule_set":["geoip-facebook","geoip-google","geoip-telegram","geoip-twitter","geosite-github"],"outbound":"proxy"},
+      {"rule_set":"geosite-steam","outbound":"🎮 Steam"},
+      {"rule_set":"geosite-epicgames","outbound":"🕹️ Epic"},
+      {"rule_set":"geosite-nvidia","outbound":"🎮 Nvidia"},
+      {"rule_set":["geosite-apple","geoip-apple"],"outbound":"🍎 Apple"},
+      {"rule_set":"geosite-microsoft","outbound":"🪟 Microsoft"},
+      {"rule_set":"geosite-geolocation-!cn","outbound":"proxy"},
+      {"rule_set":["geosite-cn","geoip-cn"],"outbound":"direct"}
+    ],
+    "rule_set":[
+      {"tag":"us_only","type":"remote","format":"source","url":"https://cdn.jsdelivr.net/gh/neverlaughtingboy/AppAssist@master/rule/Sing-box/us_only.json","download_detour":"direct"},
+      {"tag":"customize_proxy","type":"remote","format":"source","url":"https://cdn.jsdelivr.net/gh/neverlaughtingboy/AppAssist@master/rule/Sing-box/customize_proxy.json","download_detour":"direct"},
+      {"tag":"customize_direct","type":"remote","format":"source","url":"https://cdn.jsdelivr.net/gh/neverlaughtingboy/AppAssist@master/rule/Sing-box/customize_direct.json","download_detour":"direct"},
+      {"tag":"claude","type":"remote","format":"source","url":"https://cdn.jsdelivr.net/gh/neverlaughtingboy/sing-box-geosite@main/my_rule/Claude.json","download_detour":"direct"},
+      {"tag":"claude_additional","type":"remote","format":"source","url":"https://cdn.jsdelivr.net/gh/neverlaughtingboy/sing-box-geosite@main/my_rule/ClaudeAdditional.json","download_detour":"direct"},
+      {"tag":"openai","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/openai.srs","download_detour":"direct"},
+      {"tag":"geosite-apple","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/apple.srs","download_detour":"direct"},
+      {"tag":"geoip-apple","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geoip/apple.srs","download_detour":"direct"},
+      {"tag":"geosite-github","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/github.srs","download_detour":"direct"},
+      {"tag":"geosite-microsoft","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/microsoft.srs","download_detour":"direct"},
+      {"tag":"geosite-bilibili","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/bilibili.srs","download_detour":"direct"},
+      {"tag":"geoip-bilibili","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geoip/bilibili.srs","download_detour":"direct"},
+      {"tag":"geosite-steam","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/steam.srs","download_detour":"direct"},
+      {"tag":"geosite-epicgames","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/epicgames.srs","download_detour":"direct"},
+      {"tag":"geosite-netflix","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/netflix.srs","download_detour":"direct"},
+      {"tag":"geoip-netflix","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/netflix.srs","download_detour":"direct"},
+      {"tag":"geosite-disney","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/disney.srs","download_detour":"direct"},
+      {"tag":"geosite-hbo","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/hbo.srs","download_detour":"direct"},
+      {"tag":"geosite-nvidia","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/nvidia.srs","download_detour":"direct"},
+      {"tag":"geoip-facebook","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/facebook.srs","download_detour":"direct"},
+      {"tag":"geoip-google","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/google.srs","download_detour":"direct"},
+      {"tag":"geoip-telegram","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/telegram.srs","download_detour":"direct"},
+      {"tag":"geoip-twitter","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/twitter.srs","download_detour":"direct"},
+      {"tag":"geosite-cn","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs","download_detour":"direct"},
+      {"tag":"geoip-cn","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo-lite/geoip/cn.srs","download_detour":"direct"},
+      {"tag":"geosite-geolocation-!cn","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/geolocation-!cn.srs","download_detour":"direct"}
+    ],
+    "final": "🐟 漏网之鱼",
+    "default_domain_resolver": {"server": "public"}
+  },
+  "inbounds": [
+    {
+      "tag": "dns-in",
+      "type": "direct",
+      "listen": "::",
+      "listen_port": 1053
+    },
+    {
+      "tag": "http-in",
+      "type": "http",
+      "listen": "::",
+      "listen_port": 8080
+    },
+    {
+      "tag": "socks-in",
+      "type": "socks",
+      "listen": "::",
+      "listen_port": 1080
+    },
+    {
+      "tag": "redirect-in",
+      "type": "redirect",
+      "listen": "::",
+      "listen_port": 7890
+    },
+    {
+      "tag": "tproxy-in",
+      "type": "tproxy",
+      "listen": "::",
+      "listen_port": 7891
+    },
+    {
+      "tag": "tun-in",
+      "type": "tun",
+      "interface_name": "momo",
+      "address": [
+        "172.31.0.1/30",
+        "fdfe:dcba:9876::1/126"
+      ],
+      "auto_route": false,
+      "auto_redirect": false
+    }
+  ],
+  "experimental": {
+    "cache_file": {
+      "enabled": true,
+      "path": "/etc/momo/run/cache.db",
+      "store_fakeip": true
+    },
+    "clash_api": {
+      "external_controller": "0.0.0.0:9095",
+      "external_ui": "/etc/momo/run/ui",
+      "external_ui_download_url": "https://gh-proxy.com/https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip",
+      "external_ui_download_detour": "direct",
+      "secret": "",
+      "default_mode": "rule"
+    }
+  },
+  "log": {
+    "disabled": false,
+    "level": "warn",
+    "timestamp": true
+  }
+}
