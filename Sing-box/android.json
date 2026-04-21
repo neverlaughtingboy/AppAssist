@@ -95,6 +95,8 @@
       {"tag":"geosite-geolocation-!cn","type":"remote","format":"binary","url":"https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/geolocation-!cn.srs","download_detour":"direct"}
     ],
     "final": "🐟 漏网之鱼",
+    "auto_detect_interface": true,
+    "override_android_vpn": true,
     "default_domain_resolver": {"server": "public"}
   },
   "inbounds": [
@@ -129,8 +131,8 @@
         "172.31.0.1/30",
         "fdfe:dcba:9876::1/126"
       ],
-      "auto_route": false,
-      "auto_redirect": false
+      "auto_route": true,
+      "auto_redirect": true
     }
   ],
   "experimental": {
