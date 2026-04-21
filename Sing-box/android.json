@@ -131,7 +131,6 @@
       ],
       "auto_route": true,
       "auto_redirect": true,
-      "stack": "gvisor",
       "sniff": true
     }
   ],
