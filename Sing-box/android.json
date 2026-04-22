@@ -13,7 +13,7 @@
       {"query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1},
       {"rule_set": "geosite-cn", "server": "local"}
     ],
-    "final": "local",
+    "final": "foreign",
     "client_subnet": "223.5.5.0/24",
     "strategy": "prefer_ipv6",
     "reverse_mapping": true
@@ -101,31 +101,19 @@
   },
   "inbounds": [
     {
-      "tag": "http-in",
-      "type": "http",
-      "listen": "::",
-      "listen_port": 8080
-    },
-    {
-      "tag": "socks-in",
-      "type": "socks",
-      "listen": "::",
-      "listen_port": 1080
-    },
-    {
-      "tag": "redirect-in",
-      "type": "redirect",
-      "listen": "::",
-      "listen_port": 7890
-    },
-    {
       "tag": "tun-in",
       "type": "tun",
       "address": [
-        "172.31.0.1/30",
+        "172.19.0.1/30",
         "fdfe:dcba:9876::1/126"
       ],
+      "mtu": 9000,
       "auto_route": true
+    },
+    {
+      "type": "mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
     }
   ],
   "experimental": {
