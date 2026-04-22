@@ -14,7 +14,7 @@
       {"query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1},
       {"rule_set": "geosite-cn", "server": "local"}
     ],
-    "final": "foreign",
+    "final": "local",
     "client_subnet": "223.5.5.0/24",
     "strategy": "prefer_ipv6",
     "reverse_mapping": true
