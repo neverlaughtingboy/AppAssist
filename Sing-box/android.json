@@ -2,7 +2,7 @@
   "dns": {
     "servers": [
       {"tag": "local", "type": "udp", "server": "223.5.5.5"},
-      {"tag": "public", "type": "https", "server": "dns.alidns.com", "domain_resolver": "local"},
+      {"tag": "public", "type": "https", "server": "dns.alidns.com"},
       {"tag": "foreign", "type": "https", "server": "8.8.8.8", "detour": "proxy"},
       {"tag": "fakeip", "type": "fakeip", "inet4_range": "198.18.0.0/15", "inet6_range": "fc00::/18"}
     ],
@@ -14,7 +14,7 @@
       {"rule_set": ["geosite-cn"], "server": "local"},
       {"query_type": ["A", "AAAA"], "server": "fakeip", "rewrite_ttl": 1}
     ],
-    "final": "foreign",
+    "final": "local",
     "strategy": "prefer_ipv6",
     "reverse_mapping": true
   },
