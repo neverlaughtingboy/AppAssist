@@ -42,8 +42,6 @@
   "route": {
     "rules": [
       {"action": "sniff", "sniffer": ["http", "tls", "quic", "dns"]},
-      {"inbound": "dns-in", "action": "hijack-dns"},
-      {"ip_is_private": true, "outbound": "direct"},
       {"clash_mode": "direct", "outbound": "direct"},
       {"clash_mode": "global", "outbound": "proxy"},
       {"rule_set":"us_only","outbound":"🇺🇲 美国节点"},
