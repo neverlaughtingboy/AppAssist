@@ -39,13 +39,16 @@
     {"tag":"🤖 OpenAI","type":"selector","outbounds":["{all}"],"filter":[{"action":"include","keywords":["美|波特兰|达拉斯|俄勒冈|凤凰城|费利蒙|硅谷|拉斯维加斯|洛杉矶|圣何塞|圣克拉拉|西雅图|芝加哥|US|United States"]},{"action":"exclude","keywords":["Premium|海外"]}]},
     {"tag":"🤖 Claude","type":"selector","outbounds":["{all}"],"filter":[{"action":"include","keywords":["新加坡|坡|狮城|SG|Singapore"]},{"action":"include","keywords":["DIP"]},{"action":"exclude","keywords":["Premium|海外"]}]},
     {"type":"selector","tag":"🐟 漏网之鱼","outbounds":["direct","🚀 默认代理","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
+    {"tag": "GLOBAL", "type": "selector", "outbounds": ["direct","🚀 默认代理","🇭🇰 香港节点","🇯🇵 日本节点","🇺🇲 美国节点","🇸🇬 狮城节点","🇨🇳 台湾节点"]},
     {"type":"direct","tag":"direct"}
   ],
   "route": {
     "rules": [
       {"action": "sniff", "sniffer": ["http", "tls", "quic", "dns"]},
+      {"type": "logical", "mode": "or", "rules": [{"port": 53}, {"protocol": "dns"}], "action": "hijack-dns"},
+      {"ip_is_private": true, "outbound": "direct"},
       {"clash_mode": "direct", "outbound": "direct"},
-      {"clash_mode": "global", "outbound": "🚀 默认代理"},
+      {"clash_mode": "global", "outbound": "GLOBAL"},
       {"rule_set":"us_only","outbound":"🇺🇲 美国节点"},
       {"rule_set":"customize_proxy","outbound":"🚀 默认代理"},
       {"rule_set":"customize_direct","outbound":"direct"},
@@ -62,7 +65,8 @@
       {"rule_set":["geosite-apple","geoip-apple"],"outbound":"🍎 Apple"},
       {"rule_set":"geosite-microsoft","outbound":"🪟 Microsoft"},
       {"rule_set":"geosite-geolocation-!cn","outbound":"🚀 默认代理"},
-      {"rule_set":["geosite-cn","geoip-cn"],"outbound":"direct"}
+      {"rule_set":["geosite-cn","geoip-cn"],"outbound":"direct"},
+      {"action": "resolve"}
     ],
     "rule_set":[
       {"tag": "geosite-fakeipfilter", "type": "remote", "format": "source", "url": "https://gh-proxy.com/https://raw.githubusercontent.com/qichiyuhub/rule/refs/heads/main/rules/fakeipfilter.json", "download_detour": "direct"},
