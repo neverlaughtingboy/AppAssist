@@ -1,5 +1,5 @@
 // Usage:
-// #name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group=🕳ℹ️jp-auto🏷ℹ️🇯🇵|日本|川日|东京|大阪|泉日|埼玉|沪日|深日|[^-]日|JP|Japan🚫ℹ️尼日利亚|日用&remain-proxy-group=remaining&proxy-domain-dns-config=true
+// #name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group-url=https%3A%2F%2Fraw.githubusercontent.com%2Fuser%2Frepo%2Fmain%2Fnexitally-proxy-groups.txt&remain-proxy-group=remaining&proxy-domain-dns-config=true
 //
 // Read a Surge conf from `proxy-provider-url`, or from the Sub-Store file named
 // by `name` when the URL is omitted. Copy proxies from its [Proxy] section into
@@ -15,7 +15,9 @@ const proxyProviderUserAgent =
   args['proxy-provider-ua'] ?? args.proxyProviderUa
 const proxyPrefix = args['proxy-prefix'] ?? args.proxyPrefix ?? name
 const proxyExclude = args['proxy-exclude'] ?? args.proxyExclude
-const proxyGroup = args['proxy-group'] ?? args.proxyGroup
+const proxyGroupInline = args['proxy-group'] ?? args.proxyGroup
+const proxyGroupUrl = args['proxy-group-url'] ?? args.proxyGroupUrl
+const legacyProxyGroupFile = args['proxy-group-file'] ?? args.proxyGroupFile
 const remainProxyGroup = args['remain-proxy-group'] ?? args.remainProxyGroup
 const proxyDomainDnsConfig =
   args['proxy-domain-dns-config'] ?? args.proxyDomainDnsConfig
@@ -23,13 +25,21 @@ const proxyDomainDnsConfig =
 if (!name) {
   throw new Error('Missing required argument: name')
 }
-if (!proxyGroup) {
-  throw new Error('Missing required argument: proxy-group')
+if (legacyProxyGroupFile) {
+  throw new Error('proxy-group-file is no longer supported; use proxy-group-url')
+}
+if (!proxyGroupInline && !proxyGroupUrl) {
+  throw new Error('Missing required argument: proxy-group or proxy-group-url')
 }
 
 const currentContent = $content ?? $files?.[0]
 if (typeof currentContent !== 'string') {
   throw new Error('Current file content is empty or unavailable')
+}
+
+const proxyGroup = await loadProxyGroup(proxyGroupInline, proxyGroupUrl)
+if (!proxyGroup) {
+  throw new Error('proxy-group is empty')
 }
 
 const targetContent = await loadTargetContent(name, proxyProviderUrl, proxyProviderUserAgent)
@@ -94,6 +104,34 @@ $content = current.lines.join(current.eol)
 
 log('End')
 
+async function loadProxyGroup(inlineValue, groupUrl) {
+  const url = String(groupUrl ?? '').trim()
+  if (url) {
+    log(`Read proxy-group from proxy-group-url: ${maskUrl(url)}`)
+    try {
+      const content = await downloadText(url, undefined, 'proxy-group-url')
+      const normalized = normalizeProxyGroup(content)
+      if (normalized) return normalized
+      log('proxy-group-url content is empty')
+    } catch (e) {
+      log(`Download proxy-group-url failed: ${e.message ?? e}`)
+    }
+  }
+
+  return normalizeProxyGroup(inlineValue)
+}
+
+function normalizeProxyGroup(value) {
+  return String(value ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line && !/^(#|;|\/\/)/.test(line))
+    .join('')
+    .trim()
+}
+
 async function loadTargetContent(targetName, providerUrl, userAgent) {
   const url = String(providerUrl ?? '').trim()
   if (url) {
@@ -102,7 +140,7 @@ async function loadTargetContent(targetName, providerUrl, userAgent) {
       log('Use custom proxy-provider-user-agent')
     }
     try {
-      return await downloadTargetContent(url, userAgent)
+      return await downloadText(url, userAgent, 'proxy-provider-url')
     } catch (e) {
       log(`Download proxy-provider-url failed: ${e.message ?? e}`)
       return ''
@@ -121,7 +159,7 @@ async function loadTargetContent(targetName, providerUrl, userAgent) {
   }
 }
 
-async function downloadTargetContent(url, userAgent) {
+async function downloadText(url, userAgent, label) {
   const downloader =
     typeof ProxyUtils !== 'undefined' && typeof ProxyUtils?.download === 'function'
       ? ProxyUtils.download
@@ -130,7 +168,7 @@ async function downloadTargetContent(url, userAgent) {
         : null
 
   if (!downloader) {
-    throw new Error('proxy-provider-url requires ProxyUtils.download, but it is unavailable')
+    throw new Error(`${label} requires ProxyUtils.download, but it is unavailable`)
   }
 
   const ua = String(userAgent ?? '').trim() || undefined
