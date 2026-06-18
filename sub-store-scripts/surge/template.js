@@ -1,14 +1,18 @@
 // Usage:
-// #name=target-file&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group=🕳ℹ️jp-auto🏷ℹ️🇯🇵|日本|川日|东京|大阪|泉日|埼玉|沪日|深日|[^-]日|JP|Japan🚫ℹ️尼日利亚|日用&remain-proxy-group=remaining&proxy-domain-dns-config=true
+// #name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group=🕳ℹ️jp-auto🏷ℹ️🇯🇵|日本|川日|东京|大阪|泉日|埼玉|沪日|深日|[^-]日|JP|Japan🚫ℹ️尼日利亚|日用&remain-proxy-group=remaining&proxy-domain-dns-config=true
 //
-// Read a Surge conf file saved in Sub-Store by `name`, copy all proxies from
-// its [Proxy] section into the current file, and optionally add DNS Host rules
-// for proxy server domains.
+// Read a Surge conf from `proxy-provider-url`, or from the Sub-Store file named
+// by `name` when the URL is omitted. Copy proxies from its [Proxy] section into
+// the current file, and optionally add DNS Host rules for proxy server domains.
 
 log('Start')
 
 const args = $arguments || {}
 const name = args.name
+const proxyProviderUrl = args['proxy-provider-url'] ?? args.proxyProviderUrl
+const proxyProviderUserAgent =
+  args['proxy-provider-user-agent'] ?? args.proxyProviderUserAgent ??
+  args['proxy-provider-ua'] ?? args.proxyProviderUa
 const proxyPrefix = args['proxy-prefix'] ?? args.proxyPrefix ?? name
 const proxyExclude = args['proxy-exclude'] ?? args.proxyExclude
 const proxyGroup = args['proxy-group'] ?? args.proxyGroup
@@ -28,26 +32,22 @@ if (typeof currentContent !== 'string') {
   throw new Error('Current file content is empty or unavailable')
 }
 
-log(`Read target Surge conf file: ${name}`)
-const targetContent = await produceArtifact({
-  type: 'file',
-  name,
-})
+const targetContent = await loadTargetContent(name, proxyProviderUrl, proxyProviderUserAgent)
 
 const current = splitContent(currentContent)
-const target = splitContent(String(targetContent ?? ''))
-const targetProxies = getProxyEntries(target.lines)
-
-if (targetProxies.length === 0) {
-  throw new Error(`No proxy entries found in target file [${name}] [Proxy] section`)
-}
-
+const prefix = String(proxyPrefix || name).trim()
+const targetState = resolveTargetConfig(targetContent, name, isTrue(proxyDomainDnsConfig))
+const target = targetState.target
+const targetProxies = targetState.proxies
 const filteredProxies = excludeProxies(targetProxies, proxyExclude)
 if (filteredProxies.length === 0) {
   throw new Error(`No proxy entries left after proxy-exclude in target file [${name}]`)
 }
 
-const prefix = String(proxyPrefix || name).trim()
+const managedCacheKey = createCacheKey('managed', name, prefix)
+const previousManagedState = normalizeCacheEntry(readCacheEntry(managedCacheKey))
+resetManagedContent(current.lines, prefix, previousManagedState)
+
 const renamedProxies = filteredProxies.map(proxy => ({
   ...proxy,
   name: `[${prefix}] ${proxy.name}`,
@@ -62,27 +62,213 @@ log(`Apply ${proxyGroupRules.length} proxy-group rule(s)`)
 const groupedProxyNames = applyProxyGroupRules(current.lines, proxyGroupRules, renamedProxies)
 applyRemainProxyGroup(current.lines, remainProxyGroup, renamedProxies, groupedProxyNames)
 
+let hostDomains = []
 if (isTrue(proxyDomainDnsConfig)) {
   log('proxy-domain-dns-config is enabled')
-  const encryptedDnsServer = getConfigValue(target.lines, 'encrypted-dns-server')
+  const encryptedDnsServer = targetState.encryptedDnsServer
   if (!encryptedDnsServer) {
     throw new Error(`Target file [${name}] does not contain encrypted-dns-server`)
   }
 
-  const domains = unique(
+  hostDomains = unique(
     filteredProxies
       .map(proxy => extractProxyDomain(proxy.value))
       .filter(Boolean)
       .map(domain => domain.toLowerCase())
   )
 
-  log(`Append or update ${domains.length} host DNS rule(s)`)
-  upsertHostRules(current.lines, domains, encryptedDnsServer)
+  log(`Append or update ${hostDomains.length} host DNS rule(s)`)
+  upsertHostRules(current.lines, hostDomains, encryptedDnsServer)
 }
+
+writeCacheEntry(managedCacheKey, {
+  version: 1,
+  name,
+  prefix,
+  updatedAt: new Date().toISOString(),
+  proxyNames: renamedProxies.map(proxy => proxy.name),
+  hostDomains,
+})
 
 $content = current.lines.join(current.eol)
 
 log('End')
+
+async function loadTargetContent(targetName, providerUrl, userAgent) {
+  const url = String(providerUrl ?? '').trim()
+  if (url) {
+    log(`Read target Surge conf from proxy-provider-url: ${maskUrl(url)}`)
+    if (String(userAgent ?? '').trim()) {
+      log('Use custom proxy-provider-user-agent')
+    }
+    try {
+      return await downloadTargetContent(url, userAgent)
+    } catch (e) {
+      log(`Download proxy-provider-url failed: ${e.message ?? e}`)
+      return ''
+    }
+  }
+
+  log(`Read target Surge conf file: ${targetName}`)
+  try {
+    return await produceArtifact({
+      type: 'file',
+      name: targetName,
+    })
+  } catch (e) {
+    log(`Read target Surge conf file [${targetName}] failed: ${e.message ?? e}`)
+    return ''
+  }
+}
+
+async function downloadTargetContent(url, userAgent) {
+  const downloader =
+    typeof ProxyUtils !== 'undefined' && typeof ProxyUtils?.download === 'function'
+      ? ProxyUtils.download
+      : typeof download === 'function'
+        ? download
+        : null
+
+  if (!downloader) {
+    throw new Error('proxy-provider-url requires ProxyUtils.download, but it is unavailable')
+  }
+
+  const ua = String(userAgent ?? '').trim() || undefined
+  const result = await downloader(url, ua, undefined, undefined, undefined, undefined, true)
+  if (typeof result === 'string') return result
+  if (result && typeof result.body === 'string') return result.body
+  return String(result ?? '')
+}
+
+function resolveTargetConfig(content, targetName, requireEncryptedDns) {
+  const cacheKey = createCacheKey('target-last-good', targetName)
+  const fresh = parseTargetConfig(content, requireEncryptedDns)
+
+  if (fresh.valid) {
+    const cached = writeCacheEntry(cacheKey, {
+      version: 1,
+      name: targetName,
+      updatedAt: new Date().toISOString(),
+      content: String(content ?? ''),
+    })
+    log(`Target file [${targetName}] is valid, ${cached ? 'updated' : 'skipped'} last-good cache`)
+    return fresh
+  }
+
+  log(`Target file [${targetName}] is invalid: ${fresh.reason}`)
+
+  const cachedEntry = normalizeCacheEntry(readCacheEntry(cacheKey))
+  if (cachedEntry?.content) {
+    const cached = parseTargetConfig(cachedEntry.content, requireEncryptedDns)
+    if (cached.valid) {
+      log(`Use cached target file [${targetName}] from ${cachedEntry.updatedAt || 'unknown time'}`)
+      return cached
+    }
+    log(`Cached target file [${targetName}] is invalid: ${cached.reason}`)
+  }
+
+  throw new Error(`Target file [${targetName}] is invalid and no valid last-good cache is available`)
+}
+
+function parseTargetConfig(content, requireEncryptedDns) {
+  const text = String(content ?? '')
+  if (!text.trim()) {
+    return { valid: false, reason: 'empty content' }
+  }
+
+  const target = splitContent(text)
+  const proxies = getProxyEntries(target.lines)
+  if (proxies.length === 0) {
+    return { valid: false, reason: 'no proxy entries in [Proxy] section' }
+  }
+
+  const encryptedDnsServer = getConfigValue(target.lines, 'encrypted-dns-server')
+  if (requireEncryptedDns && !encryptedDnsServer) {
+    return { valid: false, reason: 'missing encrypted-dns-server' }
+  }
+
+  return {
+    valid: true,
+    target,
+    proxies,
+    encryptedDnsServer,
+  }
+}
+
+function resetManagedContent(lines, prefix, previousState) {
+  const previousProxyNames = new Set(
+    Array.isArray(previousState?.proxyNames) ? previousState.proxyNames : []
+  )
+  const previousHostDomains = Array.isArray(previousState?.hostDomains)
+    ? previousState.hostDomains
+    : []
+
+  const removedProxyNames = removeManagedProxyEntries(lines, prefix, previousProxyNames)
+  const proxyNamesToRemove = new Set([...previousProxyNames, ...removedProxyNames])
+
+  removeManagedProxyGroupEntries(lines, prefix, proxyNamesToRemove)
+  removeManagedHostEntries(lines, previousHostDomains)
+
+  log(
+    `Reset managed content: removed ${removedProxyNames.length} proxy/proxies, ${previousHostDomains.length} host domain record(s)`
+  )
+}
+
+function removeManagedProxyEntries(lines, prefix, previousProxyNames) {
+  const bounds = getSectionBounds(lines, 'Proxy')
+  if (!bounds) return []
+
+  const removed = []
+  for (let index = bounds.end - 1; index > bounds.start; index--) {
+    const parsed = parseKeyValueLine(lines[index])
+    if (!parsed) continue
+    if (previousProxyNames.has(parsed.key) || isManagedProxyName(parsed.key, prefix)) {
+      removed.push(parsed.key)
+      lines.splice(index, 1)
+    }
+  }
+
+  return removed
+}
+
+function removeManagedProxyGroupEntries(lines, prefix, proxyNamesToRemove) {
+  const bounds = getSectionBounds(lines, 'Proxy Group')
+  if (!bounds) return
+
+  for (let index = bounds.start + 1; index < bounds.end; index++) {
+    const parsed = parseKeyValueLine(lines[index])
+    if (!parsed) continue
+
+    const tokens = splitCommaValues(parsed.value).map(token => token.trim()).filter(Boolean)
+    const keptTokens = tokens.filter(token => {
+      const name = stripQuotes(token).trim()
+      return !proxyNamesToRemove.has(name) && !isManagedProxyName(name, prefix)
+    })
+
+    if (keptTokens.length !== tokens.length) {
+      lines[index] = `${parsed.indent}${parsed.key} = ${keptTokens.join(', ')}${parsed.comment ? ` ${parsed.comment}` : ''}`
+    }
+  }
+}
+
+function removeManagedHostEntries(lines, domains) {
+  if (!domains.length) return
+  const bounds = getSectionBounds(lines, 'Host')
+  if (!bounds) return
+
+  const domainSet = new Set(domains.map(domain => String(domain).toLowerCase()))
+  for (let index = bounds.end - 1; index > bounds.start; index--) {
+    const parsed = parseKeyValueLine(lines[index])
+    if (!parsed) continue
+    if (domainSet.has(parsed.key.toLowerCase())) {
+      lines.splice(index, 1)
+    }
+  }
+}
+
+function isManagedProxyName(name, prefix) {
+  return String(name).startsWith(`[${prefix}] `)
+}
 
 function excludeProxies(proxies, pattern) {
   if (!pattern) {
@@ -484,6 +670,85 @@ function createExcludeRegExp(pattern) {
   const source = String(pattern || '.*')
   const cleanSource = source.split('ℹ️').join('')
   return new RegExp(cleanSource || '.*', 'i')
+}
+
+function readCacheEntry(key) {
+  try {
+    if (typeof $substore !== 'undefined' && $substore?.read) {
+      const value = $substore.read(toPersistentCacheKey(key))
+      if (value) return value
+    }
+  } catch (e) {
+    log(`Read $substore failed: ${e.message ?? e}`)
+  }
+
+  try {
+    if (typeof $persistentStore !== 'undefined' && $persistentStore?.read) {
+      const value = $persistentStore.read(key)
+      if (value) return value
+    }
+  } catch (e) {
+    log(`Read $persistentStore failed: ${e.message ?? e}`)
+  }
+
+  return null
+}
+
+function writeCacheEntry(key, value) {
+  let persisted = false
+
+  try {
+    if (typeof $substore !== 'undefined' && $substore?.write) {
+      $substore.write(JSON.stringify(value), toPersistentCacheKey(key))
+      persisted = true
+    }
+  } catch (e) {
+    log(`Write $substore failed: ${e.message ?? e}`)
+  }
+
+  if (persisted) return true
+
+  try {
+    if (typeof $persistentStore !== 'undefined' && $persistentStore?.write) {
+      return $persistentStore.write(JSON.stringify(value), key)
+    }
+  } catch (e) {
+    log(`Write $persistentStore failed: ${e.message ?? e}`)
+  }
+
+  log(`No cache backend available for key: ${key}`)
+  return false
+}
+
+function normalizeCacheEntry(value) {
+  if (!value) return null
+  if (typeof value === 'object') return value
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return { content: value }
+    }
+  }
+  return null
+}
+
+function createCacheKey(...parts) {
+  return ['surge-template', ...parts.map(part => encodeURIComponent(String(part)))].join(':')
+}
+
+function toPersistentCacheKey(key) {
+  return `#${key}`
+}
+
+function maskUrl(value) {
+  const text = String(value || '')
+  try {
+    const url = new URL(text)
+    return `${url.protocol}//${url.host}${url.pathname ? '/***' : ''}`
+  } catch {
+    return text.replace(/([?&][^=]*?(?:token|key|secret|password|passwd|pwd|auth)[^=]*=)[^&#]+/gi, '$1***')
+  }
 }
 
 function log(message) {
