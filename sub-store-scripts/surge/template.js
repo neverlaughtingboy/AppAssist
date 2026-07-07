@@ -1,5 +1,5 @@
 // Usage:
-// #name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group-url=https%3A%2F%2Fraw.githubusercontent.com%2Fuser%2Frepo%2Fmain%2Fnexitally-proxy-groups.txt&remain-proxy-group=remaining&proxy-domain-dns-config=true
+// #name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group-url=https%3A%2F%2Fraw.githubusercontent.com%2Fuser%2Frepo%2Fmain%2Fnexitally-proxy-groups.txt&remain-proxy-group=remaining&proxy-domain-dns-config=true&proxy-domain-dns-detect=true
 //
 // Read a Surge conf from `proxy-provider-url`, or from the Sub-Store file named
 // by `name` when the URL is omitted. Copy proxies from its [Proxy] section into
@@ -21,6 +21,12 @@ const legacyProxyGroupFile = args['proxy-group-file'] ?? args.proxyGroupFile
 const remainProxyGroup = args['remain-proxy-group'] ?? args.remainProxyGroup
 const proxyDomainDnsConfig =
   args['proxy-domain-dns-config'] ?? args.proxyDomainDnsConfig
+const proxyDomainDnsDetect =
+  args['proxy-domain-dns-detect'] ?? args.proxyDomainDnsDetect
+const proxyDomainDnsDetectTimeout =
+  args['proxy-domain-dns-detect-timeout'] ?? args.proxyDomainDnsDetectTimeout
+const proxyDomainDnsDetectConcurrency =
+  args['proxy-domain-dns-detect-concurrency'] ?? args.proxyDomainDnsDetectConcurrency
 
 if (!name) {
   throw new Error('Missing required argument: name')
@@ -75,8 +81,8 @@ applyRemainProxyGroup(current.lines, remainProxyGroup, renamedProxies, groupedPr
 let hostDomains = []
 if (isTrue(proxyDomainDnsConfig)) {
   log('proxy-domain-dns-config is enabled')
-  const encryptedDnsServer = targetState.encryptedDnsServer
-  if (!encryptedDnsServer) {
+  const encryptedDnsServers = targetState.encryptedDnsServers
+  if (!encryptedDnsServers.length) {
     throw new Error(`Target file [${name}] does not contain encrypted-dns-server`)
   }
 
@@ -88,7 +94,12 @@ if (isTrue(proxyDomainDnsConfig)) {
   )
 
   log(`Append or update ${hostDomains.length} host DNS rule(s)`)
-  upsertHostRules(current.lines, hostDomains, encryptedDnsServer)
+  const hostDnsServers = await resolveHostDnsServers(hostDomains, encryptedDnsServers, {
+    detect: !isFalse(proxyDomainDnsDetect),
+    timeout: parsePositiveInteger(proxyDomainDnsDetectTimeout, 2000),
+    concurrency: parsePositiveInteger(proxyDomainDnsDetectConcurrency, 5),
+  })
+  upsertHostRules(current.lines, hostDnsServers)
 }
 
 writeCacheEntry(managedCacheKey, {
@@ -220,10 +231,9 @@ function parseTargetConfig(content, requireEncryptedDns) {
     return { valid: false, reason: 'no proxy entries in [Proxy] section' }
   }
 
-  const encryptedDnsServer = getFirstCommaValue(
-    getConfigValue(target.lines, 'encrypted-dns-server')
-  )
-  if (requireEncryptedDns && !encryptedDnsServer) {
+  const encryptedDnsServers = getCommaValues(getConfigValue(target.lines, 'encrypted-dns-server'))
+  const encryptedDnsServer = encryptedDnsServers[0] || ''
+  if (requireEncryptedDns && encryptedDnsServers.length === 0) {
     return { valid: false, reason: 'missing encrypted-dns-server' }
   }
 
@@ -232,6 +242,7 @@ function parseTargetConfig(content, requireEncryptedDns) {
     target,
     proxies,
     encryptedDnsServer,
+    encryptedDnsServers,
   }
 }
 
@@ -424,8 +435,116 @@ function insertProxyNamesIntoParsedLine(lines, index, parsed, names) {
   lines[index] = `${parsed.indent}${parsed.key} = ${tokens.join(', ')}${parsed.comment ? ` ${parsed.comment}` : ''}`
 }
 
-function upsertHostRules(lines, domains, encryptedDnsServer) {
-  if (domains.length === 0) return
+async function resolveHostDnsServers(domains, dnsServers, options) {
+  const defaultDnsServer = dnsServers[0]
+  const results = new Map()
+  if (domains.length === 0) return results
+
+  const dohServers = dnsServers.filter(isDohServer)
+  const shouldDetect =
+    options.detect &&
+    dohServers.length > 0 &&
+    typeof ProxyUtils !== 'undefined' &&
+    typeof ProxyUtils?.doh === 'function'
+
+  if (!shouldDetect) {
+    if (options.detect && dohServers.length > 0) {
+      log('ProxyUtils.doh is unavailable, use first encrypted-dns-server for host DNS rules')
+    }
+    domains.forEach(domain => results.set(domain, defaultDnsServer))
+    return results
+  }
+
+  log(
+    `Detect DoH availability for ${domains.length} domain(s), ${dohServers.length} DoH server(s), concurrency ${options.concurrency}, timeout ${options.timeout}ms`
+  )
+
+  const cache = new Map()
+  const resolved = await mapWithConcurrency(domains, options.concurrency, async domain => {
+    const dnsServer = await detectDnsServerForDomain(domain, dohServers, {
+      defaultDnsServer,
+      timeout: options.timeout,
+      cache,
+    })
+    return [domain, dnsServer]
+  })
+
+  resolved.forEach(([domain, dnsServer]) => results.set(domain, dnsServer))
+  return results
+}
+
+async function detectDnsServerForDomain(domain, dnsServers, options) {
+  for (const dnsServer of dnsServers) {
+    if (await canResolveDomainWithDoh(domain, dnsServer, options)) {
+      return dnsServer
+    }
+  }
+
+  log(`No DoH server resolved ${domain}, fallback to first encrypted-dns-server`)
+  return options.defaultDnsServer
+}
+
+async function canResolveDomainWithDoh(domain, dnsServer, options) {
+  const key = `${dnsServer}|${domain}`
+  if (options.cache.has(key)) return options.cache.get(key)
+
+  const types = ['A', 'AAAA']
+  let lastError = ''
+  for (const type of types) {
+    try {
+      const response = await ProxyUtils.doh({
+        url: dnsServer,
+        domain,
+        type,
+        timeout: options.timeout,
+      })
+      if (hasDnsAnswer(response)) {
+        options.cache.set(key, true)
+        return true
+      }
+    } catch (e) {
+      lastError = e.message ?? String(e)
+    }
+  }
+
+  if (lastError) {
+    log(`DoH ${dnsServer} failed to resolve ${domain}: ${lastError}`)
+  }
+  options.cache.set(key, false)
+  return false
+}
+
+function hasDnsAnswer(response) {
+  return Array.isArray(response?.answers) &&
+    response.answers.some(answer => {
+      const type = String(answer?.type ?? '').toUpperCase()
+      return (type === 'A' || type === 'AAAA') && Boolean(answer?.data)
+    })
+}
+
+function isDohServer(value) {
+  return /^https?:\/\//i.test(String(value || '').trim())
+}
+
+async function mapWithConcurrency(values, concurrency, mapper) {
+  const results = new Array(values.length)
+  let nextIndex = 0
+  const workerCount = Math.max(1, Math.min(concurrency, values.length))
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < values.length) {
+        const index = nextIndex++
+        results[index] = await mapper(values[index], index)
+      }
+    })
+  )
+
+  return results
+}
+
+function upsertHostRules(lines, domainDnsServers) {
+  if (domainDnsServers.size === 0) return
 
   const bounds = ensureSection(lines, 'Host')
   const existingHostLines = new Map()
@@ -437,8 +556,8 @@ function upsertHostRules(lines, domains, encryptedDnsServer) {
   }
 
   const newLines = []
-  for (const domain of domains) {
-    const line = `${domain} = server:${encryptedDnsServer}`
+  for (const [domain, dnsServer] of domainDnsServers) {
+    const line = `${domain} = server:${dnsServer}`
     const existingIndex = existingHostLines.get(domain)
     if (existingIndex === undefined) {
       newLines.push(line)
@@ -520,10 +639,10 @@ function getConfigValue(lines, key) {
   return ''
 }
 
-function getFirstCommaValue(value) {
+function getCommaValues(value) {
   return splitCommaValues(String(value ?? ''))
     .map(token => stripQuotes(token).trim())
-    .find(Boolean) || ''
+    .filter(Boolean)
 }
 
 function appendSectionLines(lines, sectionName, additions) {
@@ -703,6 +822,15 @@ function unique(values) {
 
 function isTrue(value) {
   return /^(true|1|yes|on)$/i.test(String(value ?? '').trim())
+}
+
+function isFalse(value) {
+  return /^(false|0|no|off)$/i.test(String(value ?? '').trim())
+}
+
+function parsePositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? '').trim(), 10)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
 function createRegExp(pattern) {
