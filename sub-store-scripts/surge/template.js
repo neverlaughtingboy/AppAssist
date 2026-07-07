@@ -220,7 +220,9 @@ function parseTargetConfig(content, requireEncryptedDns) {
     return { valid: false, reason: 'no proxy entries in [Proxy] section' }
   }
 
-  const encryptedDnsServer = getConfigValue(target.lines, 'encrypted-dns-server')
+  const encryptedDnsServer = getFirstCommaValue(
+    getConfigValue(target.lines, 'encrypted-dns-server')
+  )
   if (requireEncryptedDns && !encryptedDnsServer) {
     return { valid: false, reason: 'missing encrypted-dns-server' }
   }
@@ -516,6 +518,12 @@ function getConfigValue(lines, key) {
     if (parsed.key.toLowerCase() === keyLower) return parsed.value
   }
   return ''
+}
+
+function getFirstCommaValue(value) {
+  return splitCommaValues(String(value ?? ''))
+    .map(token => stripQuotes(token).trim())
+    .find(Boolean) || ''
 }
 
 function appendSectionLines(lines, sectionName, additions) {
