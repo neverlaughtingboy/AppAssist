@@ -440,7 +440,7 @@ async function resolveHostDnsServers(domains, dnsServers, options) {
   const results = new Map()
   if (domains.length === 0) return results
 
-  const dohServers = dnsServers.filter(isDohServer)
+  const dohServers = unique(dnsServers.filter(isDohServer))
   const shouldDetect =
     options.detect &&
     dohServers.length > 0 &&
@@ -451,7 +451,7 @@ async function resolveHostDnsServers(domains, dnsServers, options) {
     if (options.detect && dohServers.length > 0) {
       log('ProxyUtils.doh is unavailable, use first encrypted-dns-server for host DNS rules')
     }
-    domains.forEach(domain => results.set(domain, defaultDnsServer))
+    domains.forEach(domain => results.set(domain, [defaultDnsServer]))
     return results
   }
 
@@ -460,28 +460,38 @@ async function resolveHostDnsServers(domains, dnsServers, options) {
   )
 
   const cache = new Map()
-  const resolved = await mapWithConcurrency(domains, options.concurrency, async domain => {
-    const dnsServer = await detectDnsServerForDomain(domain, dohServers, {
-      defaultDnsServer,
-      timeout: options.timeout,
-      cache,
+  const checks = await mapWithConcurrency(
+    domains.flatMap(domain => dohServers.map(dnsServer => ({ domain, dnsServer }))),
+    options.concurrency,
+    async ({ domain, dnsServer }) => ({
+      domain,
+      dnsServer,
+      available: await canResolveDomainWithDoh(domain, dnsServer, {
+        timeout: options.timeout,
+        cache,
+      }),
     })
-    return [domain, dnsServer]
-  })
+  )
 
-  resolved.forEach(([domain, dnsServer]) => results.set(domain, dnsServer))
-  return results
-}
-
-async function detectDnsServerForDomain(domain, dnsServers, options) {
-  for (const dnsServer of dnsServers) {
-    if (await canResolveDomainWithDoh(domain, dnsServer, options)) {
-      return dnsServer
+  const availableByDomain = new Map(domains.map(domain => [domain, []]))
+  for (const check of checks) {
+    if (check.available) {
+      availableByDomain.get(check.domain).push(check.dnsServer)
     }
   }
 
-  log(`No DoH server resolved ${domain}, fallback to first encrypted-dns-server`)
-  return options.defaultDnsServer
+  for (const domain of domains) {
+    const availableDnsServers = availableByDomain.get(domain)
+
+    if (availableDnsServers.length === 0) {
+      log(`No DoH server resolved ${domain}, fallback to first encrypted-dns-server`)
+      results.set(domain, [defaultDnsServer])
+    } else {
+      results.set(domain, availableDnsServers)
+    }
+  }
+
+  return results
 }
 
 async function canResolveDomainWithDoh(domain, dnsServer, options) {
@@ -556,8 +566,8 @@ function upsertHostRules(lines, domainDnsServers) {
   }
 
   const newLines = []
-  for (const [domain, dnsServer] of domainDnsServers) {
-    const line = `${domain} = server:${dnsServer}`
+  for (const [domain, dnsServers] of domainDnsServers) {
+    const line = `${domain} = server:${dnsServers.join(',')}`
     const existingIndex = existingHostLines.get(domain)
     if (existingIndex === undefined) {
       newLines.push(line)
