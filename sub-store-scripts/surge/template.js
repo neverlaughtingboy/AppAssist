@@ -572,9 +572,11 @@ async function resolveHostDnsServers(domains, dnsServers, options) {
 
   if (!shouldDetect) {
     if (options.detect && dohServers.length > 0) {
-      log('ProxyUtils.doh is unavailable, use first encrypted-dns-server for host DNS rules')
+      log('ProxyUtils.doh is unavailable, use all encrypted-dns-server for host DNS rules')
+    } else {
+      log(`Use all ${dnsServers.length} encrypted-dns-server(s) for host DNS rules`)
     }
-    domains.forEach(domain => results.set(domain, [defaultDnsServer]))
+    domains.forEach(domain => results.set(domain, dnsServers))
     return results
   }
 
