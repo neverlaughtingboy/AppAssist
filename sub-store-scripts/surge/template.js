@@ -3,7 +3,10 @@
 //
 // Read a Surge conf from `proxy-provider-url`, or from the Sub-Store file named
 // by `name` when the URL is omitted. Copy proxies from its [Proxy] section into
-// the current file, and optionally add DNS Host rules for proxy server domains.
+// the current file, and optionally add DNS Host rules for proxy server domains,
+// plus DIRECT rules and always-real-ip entries for encrypted DNS server domains.
+// Lines the script overwrites are snapshotted in the managed cache so the next
+// run restores the originals instead of deleting them.
 
 log('Start')
 
@@ -79,6 +82,10 @@ const groupedProxyNames = applyProxyGroupRules(current.lines, proxyGroupRules, r
 applyRemainProxyGroup(current.lines, remainProxyGroup, renamedProxies, groupedProxyNames)
 
 let hostDomains = []
+let dnsRuleDomains = []
+let hostEntries = []
+let ruleEntries = []
+let alwaysRealIpEntry = null
 if (isTrue(proxyDomainDnsConfig)) {
   log('proxy-domain-dns-config is enabled')
   const encryptedDnsServers = targetState.encryptedDnsServers
@@ -95,20 +102,35 @@ if (isTrue(proxyDomainDnsConfig)) {
 
   log(`Append or update ${hostDomains.length} host DNS rule(s)`)
   const hostDnsServers = await resolveHostDnsServers(hostDomains, encryptedDnsServers, {
-    detect: !isFalse(proxyDomainDnsDetect),
+    detect: isTrue(proxyDomainDnsDetect),
     timeout: parsePositiveInteger(proxyDomainDnsDetectTimeout, 2000),
     concurrency: parsePositiveInteger(proxyDomainDnsDetectConcurrency, 5),
   })
-  upsertHostRules(current.lines, hostDnsServers)
+  hostEntries = upsertHostRules(current.lines, hostDnsServers)
+
+  dnsRuleDomains = unique(
+    encryptedDnsServers
+      .map(server => extractDnsServerDomain(server))
+      .filter(Boolean)
+  )
+  log(`Append or update ${dnsRuleDomains.length} DNS server direct rule(s)`)
+  ruleEntries = upsertDirectRules(current.lines, dnsRuleDomains)
+
+  log(`Append ${dnsRuleDomains.length} DNS server domain(s) to always-real-ip`)
+  alwaysRealIpEntry = upsertAlwaysRealIp(current.lines, dnsRuleDomains)
 }
 
 writeCacheEntry(managedCacheKey, {
-  version: 1,
+  version: 2,
   name,
   prefix,
   updatedAt: new Date().toISOString(),
   proxyNames: renamedProxies.map(proxy => proxy.name),
   hostDomains,
+  dnsRuleDomains,
+  hostEntries,
+  ruleEntries,
+  alwaysRealIp: alwaysRealIpEntry,
 })
 
 $content = current.lines.join(current.eol)
@@ -250,19 +272,52 @@ function resetManagedContent(lines, prefix, previousState) {
   const previousProxyNames = new Set(
     Array.isArray(previousState?.proxyNames) ? previousState.proxyNames : []
   )
-  const previousHostDomains = Array.isArray(previousState?.hostDomains)
-    ? previousState.hostDomains
-    : []
+  const hostEntries = normalizeManagedEntries(previousState?.hostEntries, previousState?.hostDomains)
+  const ruleEntries = normalizeManagedEntries(previousState?.ruleEntries, previousState?.dnsRuleDomains)
+  const alwaysRealIpEntry = isValidAlwaysRealIpEntry(previousState?.alwaysRealIp)
+    ? previousState.alwaysRealIp
+    : null
+  // Cache entries written before the snapshot fields existed only record the
+  // touched domains; for those, keep removing by domain/value for one run.
+  const legacyDnsRuleDomains =
+    !Array.isArray(previousState?.ruleEntries) && Array.isArray(previousState?.dnsRuleDomains)
+      ? previousState.dnsRuleDomains.map(domain => String(domain))
+      : []
 
   const removedProxyNames = removeManagedProxyEntries(lines, prefix, previousProxyNames)
   const proxyNamesToRemove = new Set([...previousProxyNames, ...removedProxyNames])
 
   removeManagedProxyGroupEntries(lines, prefix, proxyNamesToRemove)
-  removeManagedHostEntries(lines, previousHostDomains)
+  const hostCount = resetManagedHostEntries(lines, hostEntries)
+  const ruleCount = resetManagedRuleEntries(lines, ruleEntries)
+  const alwaysRealIpCount =
+    resetManagedAlwaysRealIp(lines, alwaysRealIpEntry) +
+    removeAlwaysRealIpValues(lines, legacyDnsRuleDomains)
 
   log(
-    `Reset managed content: removed ${removedProxyNames.length} proxy/proxies, ${previousHostDomains.length} host domain record(s)`
+    `Reset managed content: removed ${removedProxyNames.length} proxy/proxies, ${hostCount} host domain record(s), ${ruleCount} DNS server direct rule(s), ${alwaysRealIpCount} always-real-ip record(s)`
   )
+}
+
+function normalizeManagedEntries(entries, legacyDomains) {
+  if (Array.isArray(entries)) {
+    return entries
+      .map(entry => ({
+        domain: String(entry?.domain ?? '').trim().toLowerCase(),
+        written: typeof entry?.written === 'string' ? entry.written : null,
+        original: typeof entry?.original === 'string' ? entry.original : null,
+      }))
+      .filter(entry => entry.domain)
+  }
+  if (Array.isArray(legacyDomains)) {
+    return legacyDomains
+      .map(domain => ({ domain: String(domain).trim().toLowerCase(), written: null, original: null }))
+  }
+  return []
+}
+
+function isValidAlwaysRealIpEntry(value) {
+  return Boolean(value) && typeof value === 'object' && typeof value.written === 'string'
 }
 
 function removeManagedProxyEntries(lines, prefix, previousProxyNames) {
@@ -302,19 +357,87 @@ function removeManagedProxyGroupEntries(lines, prefix, proxyNamesToRemove) {
   }
 }
 
-function removeManagedHostEntries(lines, domains) {
-  if (!domains.length) return
+function resetManagedHostEntries(lines, entries) {
+  if (!entries.length) return 0
   const bounds = getSectionBounds(lines, 'Host')
-  if (!bounds) return
+  if (!bounds) return 0
 
-  const domainSet = new Set(domains.map(domain => String(domain).toLowerCase()))
+  const entriesByDomain = new Map(entries.map(entry => [entry.domain, entry]))
+  let count = 0
   for (let index = bounds.end - 1; index > bounds.start; index--) {
     const parsed = parseKeyValueLine(lines[index])
     if (!parsed) continue
-    if (domainSet.has(parsed.key.toLowerCase())) {
-      lines.splice(index, 1)
-    }
+    const entry = entriesByDomain.get(parsed.key.toLowerCase())
+    if (!entry || !restoreManagedLine(lines, index, entry)) continue
+    count++
   }
+  return count
+}
+
+function resetManagedRuleEntries(lines, entries) {
+  if (!entries.length) return 0
+  const bounds = getSectionBounds(lines, 'Rule')
+  if (!bounds) return 0
+
+  const entriesByDomain = new Map(entries.map(entry => [entry.domain, entry]))
+  let count = 0
+  for (let index = bounds.end - 1; index > bounds.start; index--) {
+    const rule = parseRuleLine(lines[index])
+    if (!rule || rule.type !== 'DOMAIN') continue
+    const entry = entriesByDomain.get(rule.value.toLowerCase())
+    if (!entry || !restoreManagedLine(lines, index, entry)) continue
+    count++
+  }
+  return count
+}
+
+function resetManagedAlwaysRealIp(lines, entry) {
+  if (!entry) return 0
+  const bounds = getSectionBounds(lines, 'General')
+  if (!bounds) return 0
+
+  for (let index = bounds.start + 1; index < bounds.end; index++) {
+    const parsed = parseKeyValueLine(lines[index])
+    if (!parsed || parsed.key.toLowerCase() !== 'always-real-ip') continue
+    return restoreManagedLine(lines, index, entry) ? 1 : 0
+  }
+  return 0
+}
+
+// A managed line is only restored or removed while it still matches what the
+// script wrote last time; a line the user has since edited is left untouched.
+function restoreManagedLine(lines, index, entry) {
+  if (entry.written && lines[index] !== entry.written) return false
+  if (entry.original) {
+    lines[index] = entry.original
+  } else {
+    lines.splice(index, 1)
+  }
+  return true
+}
+
+function removeAlwaysRealIpValues(lines, domains) {
+  if (!domains.length) return 0
+  const bounds = getSectionBounds(lines, 'General')
+  if (!bounds) return 0
+
+  const domainSet = new Set(domains.map(domain => String(domain).toLowerCase()))
+  for (let index = bounds.start + 1; index < bounds.end; index++) {
+    const parsed = parseKeyValueLine(lines[index])
+    if (!parsed || parsed.key.toLowerCase() !== 'always-real-ip') continue
+
+    const existingValues = getCommaValues(parsed.value)
+    const keptValues = existingValues.filter(value => !domainSet.has(value.toLowerCase()))
+    if (keptValues.length === 0) {
+      lines.splice(index, 1)
+      return existingValues.length
+    }
+    if (keptValues.length !== existingValues.length) {
+      lines[index] = `${parsed.indent}${parsed.key} = ${keptValues.join(', ')}${parsed.comment ? ` ${parsed.comment}` : ''}`
+    }
+    return existingValues.length - keptValues.length
+  }
+  return 0
 }
 
 function isManagedProxyName(name, prefix) {
@@ -554,7 +677,8 @@ async function mapWithConcurrency(values, concurrency, mapper) {
 }
 
 function upsertHostRules(lines, domainDnsServers) {
-  if (domainDnsServers.size === 0) return
+  const entries = []
+  if (domainDnsServers.size === 0) return entries
 
   const bounds = ensureSection(lines, 'Host')
   const existingHostLines = new Map()
@@ -571,7 +695,9 @@ function upsertHostRules(lines, domainDnsServers) {
     const existingIndex = existingHostLines.get(domain)
     if (existingIndex === undefined) {
       newLines.push(line)
+      entries.push({ domain, written: line, original: null })
     } else {
+      entries.push({ domain, written: line, original: lines[existingIndex] })
       lines[existingIndex] = line
     }
   }
@@ -579,6 +705,74 @@ function upsertHostRules(lines, domainDnsServers) {
   if (newLines.length > 0) {
     insertSectionLines(lines, 'Host', newLines)
   }
+  return entries
+}
+
+function upsertDirectRules(lines, domains) {
+  const entries = []
+  if (domains.length === 0) return entries
+
+  const bounds = ensureSection(lines, 'Rule')
+  const existingRuleIndexes = new Map()
+
+  for (let index = bounds.start + 1; index < bounds.end; index++) {
+    const rule = parseRuleLine(lines[index])
+    if (!rule || rule.type !== 'DOMAIN') continue
+    existingRuleIndexes.set(rule.value.toLowerCase(), index)
+  }
+
+  const newLines = []
+  for (const domain of domains) {
+    const line = `DOMAIN,${domain},DIRECT`
+    const existingIndex = existingRuleIndexes.get(domain)
+    if (existingIndex === undefined) {
+      newLines.push(line)
+      entries.push({ domain, written: line, original: null })
+    } else {
+      entries.push({ domain, written: line, original: lines[existingIndex] })
+      lines[existingIndex] = line
+    }
+  }
+
+  if (newLines.length > 0) {
+    // Surge matches rules top-down and a trailing FINAL swallows appended
+    // rules, so new direct rules go right below the [Rule] header
+    lines.splice(bounds.start + 1, 0, ...newLines)
+  }
+  return entries
+}
+
+function parseRuleLine(line) {
+  if (!line || /^\s*[#;]/.test(line)) return null
+
+  const { body } = splitInlineComment(line)
+  const parts = splitCommaValues(body).map(part => part.trim()).filter(Boolean)
+  if (parts.length < 2 || !parts[0]) return null
+
+  return { type: parts[0].toUpperCase(), value: parts[1] }
+}
+
+function upsertAlwaysRealIp(lines, domains) {
+  if (domains.length === 0) return null
+
+  const bounds = ensureSection(lines, 'General')
+  for (let index = bounds.start + 1; index < bounds.end; index++) {
+    const parsed = parseKeyValueLine(lines[index])
+    if (!parsed || parsed.key.toLowerCase() !== 'always-real-ip') continue
+
+    const existingValues = getCommaValues(parsed.value)
+    const existingSet = new Set(existingValues.map(value => value.toLowerCase()))
+    if (domains.every(domain => existingSet.has(domain))) return null
+
+    const original = lines[index]
+    const merged = unique([...existingValues, ...domains])
+    lines[index] = `${parsed.indent}${parsed.key} = ${merged.join(', ')}${parsed.comment ? ` ${parsed.comment}` : ''}`
+    return { written: lines[index], original }
+  }
+
+  const line = `always-real-ip = ${domains.join(', ')}`
+  insertSectionLines(lines, 'General', [line])
+  return { written: line, original: null }
 }
 
 function getProxyEntries(lines) {
@@ -615,6 +809,13 @@ function extractProxyDomain(value) {
 
   server = normalizeDomain(server)
   return isValidDomain(server) ? server : ''
+}
+
+function extractDnsServerDomain(value) {
+  const withoutScheme = stripQuotes(String(value ?? '').trim()).replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
+  const host = withoutScheme.split(/[/?#]/)[0]
+  const domain = normalizeDomain(host.split(':')[0])
+  return isValidDomain(domain) ? domain.toLowerCase() : ''
 }
 
 function normalizeDomain(value) {
@@ -832,10 +1033,6 @@ function unique(values) {
 
 function isTrue(value) {
   return /^(true|1|yes|on)$/i.test(String(value ?? '').trim())
-}
-
-function isFalse(value) {
-  return /^(false|0|no|off)$/i.test(String(value ?? '').trim())
 }
 
 function parsePositiveInteger(value, fallback) {
