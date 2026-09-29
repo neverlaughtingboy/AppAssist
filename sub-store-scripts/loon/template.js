@@ -1,9 +1,13 @@
 // Usage:
 // #url=https%3A%2F%2Fexample.com%2Fsubscription.conf
+// #name=sub-file
 //
-// Read a Loon subscription config file from the `url` argument, extract the
-// doh-server list from [General] and the server domain of every [Proxy] entry,
-// then fill the Loon plugin template in the current file:
+// Read the Loon subscription config either from `url` (downloaded without a
+// User-Agent unless the `user-agent` argument is set) or, preferably, from the
+// Sub-Store file named by `name` without any download at all.
+//
+// Extract the doh-server list from [General] and the server domain of every
+// [Proxy] entry, then fill the Loon plugin template in the current file:
 //   [Rule]  one DOMAIN,<domain>,DIRECT rule per DoH server domain (IPs skipped)
 //   [Host]  <domain> = server:<full doh-server list> for every deduped node
 //           domain. A node domain that already has a domain-to-domain Host
@@ -21,9 +25,10 @@ const providerUrl =
 const providerUserAgent =
   args['user-agent'] ?? args.userAgent ??
   args['proxy-provider-user-agent'] ?? args.proxyProviderUserAgent
+const providerFileName = args.name ?? args.fileName
 
-if (!providerUrl) {
-  throw new Error('Missing required argument: url')
+if (!providerUrl && !providerFileName) {
+  throw new Error('Missing required argument: url or name')
 }
 
 const currentContent = $content ?? $files?.[0]
@@ -31,17 +36,16 @@ if (typeof currentContent !== 'string' || !currentContent.trim()) {
   throw new Error('Current plugin template is empty or unavailable')
 }
 
-log(`Read subscription config from url: ${maskUrl(String(providerUrl))}`)
-const confContent = await downloadText(providerUrl, providerUserAgent, 'url')
+const confContent = await loadConfContent(providerUrl, providerFileName, providerUserAgent)
 if (!confContent.trim()) {
-  throw new Error('Subscription config downloaded from url is empty')
+  throw new Error('Subscription config content is empty')
 }
 
 const conf = splitContent(confContent)
 
 const dnsServers = getDnsServers(conf.lines)
 if (dnsServers.length === 0) {
-  throw new Error('Subscription config has no doh-server in [General]')
+  throw new Error(`Subscription config has no usable doh-server in [General]: ${describeDnsServerIssue(conf.lines)}`)
 }
 log(`Found ${dnsServers.length} DNS server(s): ${dnsServers.join(', ')}`)
 
@@ -65,6 +69,25 @@ $content = current.lines.join(current.eol)
 
 log('End')
 
+async function loadConfContent(url, fileName, userAgent) {
+  if (url) {
+    const ua = String(userAgent ?? '').trim() || undefined
+    log(`Read subscription config from url: ${maskUrl(String(url))}${ua ? ` (User-Agent: ${ua})` : ''}`)
+    return await downloadText(url, ua, 'url')
+  }
+
+  log(`Read subscription config file: ${fileName}`)
+  try {
+    return await produceArtifact({
+      type: 'file',
+      name: fileName,
+    })
+  } catch (e) {
+    log(`Read subscription config file [${fileName}] failed: ${e.message ?? e}`)
+    return ''
+  }
+}
+
 async function downloadText(url, userAgent, label) {
   const downloader =
     typeof ProxyUtils !== 'undefined' && typeof ProxyUtils?.download === 'function'
@@ -86,6 +109,19 @@ async function downloadText(url, userAgent, label) {
 
 function getDnsServers(lines) {
   return getCommaValues(getConfigValueInSection(lines, 'General', 'doh-server')).filter(isServerValue)
+}
+
+function describeDnsServerIssue(lines) {
+  if (!getSectionBounds(lines, 'General')) {
+    const firstLine = (lines.find(line => line.trim()) || '(empty)').trim()
+    return `no [General] section in the fetched content (first line: ${firstLine.slice(0, 80)}); the source is not a Loon config, prefer the name argument or check the url content`
+  }
+
+  const raw = getConfigValueInSection(lines, 'General', 'doh-server')
+  if (!raw) {
+    return '[General] exists but contains no doh-server line'
+  }
+  return `doh-server found but every value was filtered out (${getCommaValues(raw).join(', ')})`
 }
 
 function getConfigValueInSection(lines, sectionName, key) {
