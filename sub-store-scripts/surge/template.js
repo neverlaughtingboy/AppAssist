@@ -1,12 +1,20 @@
 // Usage:
 // #name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group-url=https%3A%2F%2Fraw.githubusercontent.com%2Fuser%2Frepo%2Fmain%2Fnexitally-proxy-groups.txt&remain-proxy-group=remaining&proxy-domain-dns-config=true&proxy-domain-dns-detect=true
 //
-// Read a Surge conf from `proxy-provider-url`, or from the Sub-Store file named
-// by `name` when the URL is omitted. Copy proxies from its [Proxy] section into
-// the current file, and optionally add DNS Host rules for proxy server domains,
-// plus DIRECT rules and always-real-ip entries for encrypted DNS server domains.
+// Read a Surge conf from the Sub-Store file named by `name` first, falling
+// back to `proxy-provider-url` when the file read fails or `name` has no value
+// (`proxy-provider-user-agent` pairs with `proxy-provider-url`). Copy proxies
+// from its [Proxy] section into the current file, and optionally add DNS Host
+// rules and always-real-ip entries for proxy server domains, plus DIRECT rules
+// for encrypted DNS server domains.
 // Lines the script overwrites are snapshotted in the managed cache so the next
 // run restores the originals instead of deleting them.
+//
+// `proxy-provider-url` only works with an address the backend can fetch
+// directly: a standalone Sub-Store backend or e.g. a raw.githubusercontent.com
+// link. Sub-Store embedded in a Surge/Loon module only answers sub.store
+// requests that the module intercepts, which script downloads bypass, so use
+// `name` there.
 
 log('Start')
 
@@ -167,27 +175,34 @@ function normalizeProxyGroup(value) {
 
 async function loadTargetContent(targetName, providerUrl, userAgent) {
   const url = String(providerUrl ?? '').trim()
-  if (url) {
-    log(`Read target Surge conf from proxy-provider-url: ${maskUrl(url)}`)
-    if (String(userAgent ?? '').trim()) {
-      log('Use custom proxy-provider-user-agent')
-    }
+
+  if (targetName) {
+    log(`Read target Surge conf file: ${targetName}`)
     try {
-      return await downloadText(url, userAgent, 'proxy-provider-url')
+      const content = await produceArtifact({
+        type: 'file',
+        name: targetName,
+      })
+      if (String(content ?? '').trim()) return content
+      log(`Sub-Store file [${targetName}] is empty`)
     } catch (e) {
-      log(`Download proxy-provider-url failed: ${e.message ?? e}`)
+      log(`Read target Surge conf file [${targetName}] failed: ${e.message ?? e}`)
+    }
+    if (url) {
+      log('Fall back to proxy-provider-url')
+    } else {
       return ''
     }
   }
 
-  log(`Read target Surge conf file: ${targetName}`)
+  log(`Read target Surge conf from proxy-provider-url: ${maskUrl(url)}`)
+  if (String(userAgent ?? '').trim()) {
+    log('Use custom proxy-provider-user-agent')
+  }
   try {
-    return await produceArtifact({
-      type: 'file',
-      name: targetName,
-    })
+    return await downloadText(url, userAgent, 'proxy-provider-url')
   } catch (e) {
-    log(`Read target Surge conf file [${targetName}] failed: ${e.message ?? e}`)
+    log(`Download proxy-provider-url failed: ${e.message ?? e}`)
     return ''
   }
 }
@@ -212,33 +227,11 @@ async function downloadText(url, userAgent, label) {
 }
 
 function resolveTargetConfig(content, targetName, requireEncryptedDns) {
-  const cacheKey = createCacheKey('target-last-good', targetName)
   const fresh = parseTargetConfig(content, requireEncryptedDns)
-
-  if (fresh.valid) {
-    const cached = writeCacheEntry(cacheKey, {
-      version: 1,
-      name: targetName,
-      updatedAt: new Date().toISOString(),
-      content: String(content ?? ''),
-    })
-    log(`Target file [${targetName}] is valid, ${cached ? 'updated' : 'skipped'} last-good cache`)
-    return fresh
-  }
+  if (fresh.valid) return fresh
 
   log(`Target file [${targetName}] is invalid: ${fresh.reason}`)
-
-  const cachedEntry = normalizeCacheEntry(readCacheEntry(cacheKey))
-  if (cachedEntry?.content) {
-    const cached = parseTargetConfig(cachedEntry.content, requireEncryptedDns)
-    if (cached.valid) {
-      log(`Use cached target file [${targetName}] from ${cachedEntry.updatedAt || 'unknown time'}`)
-      return cached
-    }
-    log(`Cached target file [${targetName}] is invalid: ${cached.reason}`)
-  }
-
-  throw new Error(`Target file [${targetName}] is invalid and no valid last-good cache is available`)
+  throw new Error(`Target file [${targetName}] is invalid: ${fresh.reason}`)
 }
 
 function parseTargetConfig(content, requireEncryptedDns) {

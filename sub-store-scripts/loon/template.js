@@ -2,9 +2,13 @@
 // #url=https%3A%2F%2Fexample.com%2Fsubscription.conf
 // #name=sub-file
 //
-// Read the Loon subscription config either from `url` (downloaded without a
-// User-Agent unless the `user-agent` argument is set) or, preferably, from the
-// Sub-Store file named by `name` without any download at all.
+// Read the Loon subscription config from the Sub-Store file named by `name`
+// first, falling back to `url` when the file read fails or `name` has no value
+// (`user-agent` pairs with `url`). `url` only works with an address the
+// backend can fetch directly: a standalone Sub-Store backend or a raw file
+// link. Sub-Store embedded in a Surge/Loon module only answers sub.store
+// requests that the module intercepts, which script downloads bypass, so use
+// `name` there.
 //
 // Extract the doh-server list from [General] and the server domain of every
 // [Proxy] entry, then fill the Loon plugin template in the current file:
@@ -70,22 +74,25 @@ $content = current.lines.join(current.eol)
 log('End')
 
 async function loadConfContent(url, fileName, userAgent) {
-  if (url) {
-    const ua = String(userAgent ?? '').trim() || undefined
-    log(`Read subscription config from url: ${maskUrl(String(url))}${ua ? ` (User-Agent: ${ua})` : ''}`)
-    return await downloadText(url, ua, 'url')
+  if (fileName) {
+    log(`Read subscription config file: ${fileName}`)
+    try {
+      const content = await produceArtifact({
+        type: 'file',
+        name: fileName,
+      })
+      if (String(content ?? '').trim()) return content
+      log(`Sub-Store file [${fileName}] is empty`)
+    } catch (e) {
+      log(`Read subscription config file [${fileName}] failed: ${e.message ?? e}`)
+    }
+    if (!url) return ''
+    log('Fall back to url')
   }
 
-  log(`Read subscription config file: ${fileName}`)
-  try {
-    return await produceArtifact({
-      type: 'file',
-      name: fileName,
-    })
-  } catch (e) {
-    log(`Read subscription config file [${fileName}] failed: ${e.message ?? e}`)
-    return ''
-  }
+  const ua = String(userAgent ?? '').trim() || undefined
+  log(`Read subscription config from url: ${maskUrl(String(url))}${ua ? ` (User-Agent: ${ua})` : ''}`)
+  return await downloadText(url, ua, 'url')
 }
 
 async function downloadText(url, userAgent, label) {
@@ -114,6 +121,9 @@ function getDnsServers(lines) {
 function describeDnsServerIssue(lines) {
   if (!getSectionBounds(lines, 'General')) {
     const firstLine = (lines.find(line => line.trim()) || '(empty)').trim()
+    if (firstLine.startsWith('<')) {
+      return `the fetched content is an HTML page (first line: ${firstLine.slice(0, 80)}); the url points to a web frontend such as sub.store instead of the Sub-Store backend — use the backend address or the name argument`
+    }
     return `no [General] section in the fetched content (first line: ${firstLine.slice(0, 80)}); the source is not a Loon config, prefer the name argument or check the url content`
   }
 
