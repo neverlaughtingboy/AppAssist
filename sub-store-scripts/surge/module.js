@@ -1,22 +1,23 @@
 // Usage:
-// #sub-store-file-name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-domain-dns-detect=true
+// #sub-store-file-name=file-a,file-b&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-domain-dns-detect=true
 //
-// Read a Surge conf from the Sub-Store file named by `sub-store-file-name`
-// first, falling back to `proxy-provider-url` when the file read fails or
-// `sub-store-file-name` has no value (`proxy-provider-user-agent` pairs with
-// `proxy-provider-url`). Fill the Surge module template in the current file
-// with the node DNS helpers migrated out of template.js:
+// Read Surge confs from the Sub-Store files named by the comma-separated
+// `sub-store-file-name` (a file that fails to read is skipped with a log;
+// when every file fails, fall back to downloading `proxy-provider-url`, with
+// which `proxy-provider-user-agent` pairs). Merge the sources and fill the
+// Surge module template in the current file with the node DNS helpers
+// migrated out of template.js:
 //   [General] always-real-ip = %APPEND% <encrypted DNS server domains>
 //   [Rule]    DOMAIN,<dns server domain>,DIRECT per DNS server domain (IPs
 //             are skipped)
-//   [Host]    <node domain> = server:<DNS server list>; every domain gets the
-//             full encrypted-dns-server list, or only the DoH servers that
-//             resolved it when proxy-domain-dns-detect is on
+//   [Host]    <node domain> = server:<merged DNS server list>; every domain
+//             gets the full list, or only the DoH servers that resolved it
+//             when proxy-domain-dns-detect is on
 //
-// Generated [Rule]/[Host] lines live between the `# sub-store-managed-begin`
-// and `# sub-store-managed-end` markers and are fully regenerated on each
-// run; lines outside the markers are never touched. The always-real-ip value
-// after %APPEND% is also regenerated, so do not keep manual values there.
+// The script owns the generated shapes: on each run every DOMAIN,*,DIRECT
+// rule, every `= server:` host mapping and the whole always-real-ip value
+// after %APPEND% are removed and rewritten, so keep manual entries in other
+// shapes (DOMAIN-SUFFIX rules, static IP host mappings) or other files.
 //
 // `proxy-provider-url` only works with an address the backend can fetch
 // directly: a standalone Sub-Store backend or e.g. a raw.githubusercontent.com
@@ -26,12 +27,12 @@
 
 log('Start')
 
-const MANAGED_BEGIN = '# sub-store-managed-begin'
-const MANAGED_END = '# sub-store-managed-end'
+// markers written by earlier script versions, stripped when rewriting
+const LEGACY_MANAGED_BEGIN = '# sub-store-managed-begin'
+const LEGACY_MANAGED_END = '# sub-store-managed-end'
 
 const args = $arguments || {}
-const subStoreFileName =
-  args['sub-store-file-name'] ?? args.subStoreFileName
+const subStoreFileNames = getCommaValues(args['sub-store-file-name'] ?? args.subStoreFileName ?? '')
 const proxyProviderUrl = args['proxy-provider-url'] ?? args.proxyProviderUrl
 const proxyProviderUserAgent =
   args['proxy-provider-user-agent'] ?? args.proxyProviderUserAgent ??
@@ -44,7 +45,7 @@ const proxyDomainDnsDetectTimeout =
 const proxyDomainDnsDetectConcurrency =
   args['proxy-domain-dns-detect-concurrency'] ?? args.proxyDomainDnsDetectConcurrency
 
-if (!subStoreFileName && !proxyProviderUrl) {
+if (subStoreFileNames.length === 0 && !proxyProviderUrl) {
   throw new Error('Missing required argument: sub-store-file-name or proxy-provider-url')
 }
 
@@ -53,16 +54,25 @@ if (typeof currentContent !== 'string' || !currentContent.trim()) {
   throw new Error('Current module template is empty or unavailable')
 }
 
-const targetContent = await loadTargetContent(subStoreFileName, proxyProviderUrl, proxyProviderUserAgent)
+const targetContents = await loadTargetContents(subStoreFileNames, proxyProviderUrl, proxyProviderUserAgent)
+if (targetContents.length === 0) {
+  throw new Error('No target Surge conf could be read')
+}
 
-const target = splitContent(targetContent)
-const encryptedDnsServers = getCommaValues(getConfigValue(target.lines, 'encrypted-dns-server'))
+const proxies = []
+const dnsServerValues = []
+for (const targetContent of targetContents) {
+  const target = splitContent(targetContent)
+  proxies.push(...getProxyEntries(target.lines))
+  dnsServerValues.push(...getCommaValues(getConfigValue(target.lines, 'encrypted-dns-server')))
+}
+const encryptedDnsServers = unique(dnsServerValues)
 if (encryptedDnsServers.length === 0) {
   throw new Error('Target file does not contain encrypted-dns-server')
 }
-log(`Found ${encryptedDnsServers.length} encrypted DNS server(s)`)
+log(`Found ${encryptedDnsServers.length} encrypted DNS server(s) from ${targetContents.length} source(s)`)
 
-const filteredProxies = excludeProxies(getProxyEntries(target.lines), proxyExclude)
+const filteredProxies = excludeProxies(proxies, proxyExclude)
 const hostDomains = unique(
   filteredProxies
     .map(proxy => extractProxyDomain(proxy.value))
@@ -85,12 +95,11 @@ const dnsServerDomains = unique(
 
 const current = splitContent(currentContent)
 log(`Write ${dnsServerDomains.length} DNS server direct rule(s) into [Rule]`)
-replaceManagedBlock(current.lines, 'Rule', dnsServerDomains.map(domain => `DOMAIN,${domain},DIRECT`))
+rewriteDirectRules(current.lines, dnsServerDomains.map(domain => `DOMAIN,${domain},DIRECT`))
 
 log(`Write ${hostDnsServers.size} node Host rule(s) into [Host]`)
-replaceManagedBlock(
+rewriteHostRules(
   current.lines,
-  'Host',
   [...hostDnsServers].map(([domain, dnsServers]) => `${domain} = server:${dnsServers.join(',')}`)
 )
 
@@ -101,38 +110,45 @@ $content = current.lines.join(current.eol)
 
 log('End')
 
-async function loadTargetContent(subStoreFileName, providerUrl, userAgent) {
+async function loadTargetContents(fileNames, providerUrl, userAgent) {
   const url = String(providerUrl ?? '').trim()
+  const contents = []
 
-  if (subStoreFileName) {
-    log(`Read target Surge conf file: ${subStoreFileName}`)
+  for (const fileName of fileNames) {
+    log(`Read target Surge conf file: ${fileName}`)
     try {
       const content = await produceArtifact({
         type: 'file',
-        name: subStoreFileName,
+        name: fileName,
       })
-      if (String(content ?? '').trim()) return content
-      log(`Sub-Store file [${subStoreFileName}] is empty`)
+      if (String(content ?? '').trim()) {
+        contents.push(String(content))
+        continue
+      }
+      log(`Sub-Store file [${fileName}] is empty`)
     } catch (e) {
-      log(`Read target Surge conf file [${subStoreFileName}] failed: ${e.message ?? e}`)
-    }
-    if (url) {
-      log('Fall back to proxy-provider-url')
-    } else {
-      return ''
+      log(`Read target Surge conf file [${fileName}] failed: ${e.message ?? e}`)
     }
   }
 
-  log(`Read target Surge conf from proxy-provider-url: ${maskUrl(url)}`)
-  if (String(userAgent ?? '').trim()) {
-    log('Use custom proxy-provider-user-agent')
+  if (contents.length > 0) return contents
+
+  if (url) {
+    if (fileNames.length > 0) {
+      log('Every sub-store-file-name failed, fall back to proxy-provider-url')
+    }
+    log(`Read target Surge conf from proxy-provider-url: ${maskUrl(url)}`)
+    if (String(userAgent ?? '').trim()) {
+      log('Use custom proxy-provider-user-agent')
+    }
+    try {
+      return [await downloadText(url, userAgent, 'proxy-provider-url')]
+    } catch (e) {
+      log(`Download proxy-provider-url failed: ${e.message ?? e}`)
+    }
   }
-  try {
-    return await downloadText(url, userAgent, 'proxy-provider-url')
-  } catch (e) {
-    log(`Download proxy-provider-url failed: ${e.message ?? e}`)
-    return ''
-  }
+
+  return []
 }
 
 async function downloadText(url, userAgent, label) {
@@ -154,32 +170,42 @@ async function downloadText(url, userAgent, label) {
   return String(result ?? '')
 }
 
-function replaceManagedBlock(lines, sectionName, newLines) {
-  const bounds = ensureSection(lines, sectionName)
-  let begin = -1
-  let end = -1
-  for (let index = bounds.start + 1; index < bounds.end; index++) {
+function rewriteDirectRules(lines, newLines) {
+  const bounds = ensureSection(lines, 'Rule')
+  for (let index = bounds.end - 1; index > bounds.start; index--) {
     const trimmed = lines[index].trim()
-    if (trimmed === MANAGED_BEGIN && begin === -1) begin = index
-    if (trimmed === MANAGED_END) {
-      end = index
-      break
+    if (
+      trimmed === LEGACY_MANAGED_BEGIN ||
+      trimmed === LEGACY_MANAGED_END ||
+      /^DOMAIN,[^,]+,DIRECT$/i.test(trimmed)
+    ) {
+      lines.splice(index, 1)
     }
   }
-
-  if (begin >= 0 && end >= 0) {
-    const replacement = newLines.length > 0 ? [MANAGED_BEGIN, ...newLines, MANAGED_END] : []
-    lines.splice(begin, end - begin + 1, ...replacement)
-    return
+  if (newLines.length > 0) {
+    lines.splice(bounds.start + 1, 0, ...newLines)
   }
+}
 
-  if (newLines.length === 0) return
-  lines.splice(bounds.start + 1, 0, MANAGED_BEGIN, ...newLines, MANAGED_END)
+function rewriteHostRules(lines, newLines) {
+  const bounds = ensureSection(lines, 'Host')
+  for (let index = bounds.end - 1; index > bounds.start; index--) {
+    const trimmed = lines[index].trim()
+    if (trimmed === LEGACY_MANAGED_BEGIN || trimmed === LEGACY_MANAGED_END) {
+      lines.splice(index, 1)
+      continue
+    }
+    const parsed = parseKeyValueLine(lines[index])
+    if (parsed && /^server:/i.test(parsed.value)) {
+      lines.splice(index, 1)
+    }
+  }
+  if (newLines.length > 0) {
+    lines.splice(bounds.start + 1, 0, ...newLines)
+  }
 }
 
 function upsertAlwaysRealIpAppend(lines, domains) {
-  if (domains.length === 0) return
-
   const bounds = ensureSection(lines, 'General')
   for (let index = bounds.start + 1; index < bounds.end; index++) {
     const parsed = parseKeyValueLine(lines[index])
@@ -187,10 +213,12 @@ function upsertAlwaysRealIpAppend(lines, domains) {
 
     // module semantics: %APPEND% extends the profile value instead of
     // replacing it, and the list is regenerated from the current servers
-    lines[index] = `${parsed.indent}${parsed.key} = %APPEND% ${domains.join(', ')}`
+    const value = domains.length > 0 ? `%APPEND% ${domains.join(', ')}` : '%APPEND%'
+    lines[index] = `${parsed.indent}${parsed.key} = ${value}`
     return
   }
 
+  if (domains.length === 0) return
   insertSectionLines(lines, 'General', [`always-real-ip = %APPEND% ${domains.join(', ')}`])
 }
 
