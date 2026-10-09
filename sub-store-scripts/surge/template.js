@@ -1,9 +1,10 @@
 // Usage:
-// #name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group-url=https%3A%2F%2Fraw.githubusercontent.com%2Fuser%2Frepo%2Fmain%2Fnexitally-proxy-groups.txt&remain-proxy-group=remaining&proxy-domain-dns-config=true&proxy-domain-dns-detect=true
+// #sub-store-file-name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group-url=https%3A%2F%2Fraw.githubusercontent.com%2Fuser%2Frepo%2Fmain%2Fnexitally-proxy-groups.txt&remain-proxy-group=remaining&proxy-domain-dns-config=true&proxy-domain-dns-detect=true
 //
-// Read a Surge conf from the Sub-Store file named by `name` first, falling
-// back to `proxy-provider-url` when the file read fails or `name` has no value
-// (`proxy-provider-user-agent` pairs with `proxy-provider-url`). Copy proxies
+// Read a Surge conf from the Sub-Store file named by `sub-store-file-name`
+// first, falling back to `proxy-provider-url` when the file read fails or
+// `sub-store-file-name` has no value (`proxy-provider-user-agent` pairs with
+// `proxy-provider-url`). Copy proxies
 // from its [Proxy] section into the current file, and optionally add DNS Host
 // rules and always-real-ip entries for proxy server domains, plus DIRECT rules
 // for encrypted DNS server domains.
@@ -14,17 +15,18 @@
 // directly: a standalone Sub-Store backend or e.g. a raw.githubusercontent.com
 // link. Sub-Store embedded in a Surge/Loon module only answers sub.store
 // requests that the module intercepts, which script downloads bypass, so use
-// `name` there.
+// `sub-store-file-name` there.
 
 log('Start')
 
 const args = $arguments || {}
-const name = args.name
+const subStoreFileName =
+  args['sub-store-file-name'] ?? args.subStoreFileName
 const proxyProviderUrl = args['proxy-provider-url'] ?? args.proxyProviderUrl
 const proxyProviderUserAgent =
   args['proxy-provider-user-agent'] ?? args.proxyProviderUserAgent ??
   args['proxy-provider-ua'] ?? args.proxyProviderUa
-const proxyPrefix = args['proxy-prefix'] ?? args.proxyPrefix ?? name
+const proxyPrefix = args['proxy-prefix'] ?? args.proxyPrefix ?? subStoreFileName
 const proxyExclude = args['proxy-exclude'] ?? args.proxyExclude
 const proxyGroupInline = args['proxy-group'] ?? args.proxyGroup
 const proxyGroupUrl = args['proxy-group-url'] ?? args.proxyGroupUrl
@@ -39,8 +41,8 @@ const proxyDomainDnsDetectTimeout =
 const proxyDomainDnsDetectConcurrency =
   args['proxy-domain-dns-detect-concurrency'] ?? args.proxyDomainDnsDetectConcurrency
 
-if (!name) {
-  throw new Error('Missing required argument: name')
+if (!subStoreFileName) {
+  throw new Error('Missing required argument: sub-store-file-name')
 }
 if (legacyProxyGroupFile) {
   throw new Error('proxy-group-file is no longer supported; use proxy-group-url')
@@ -59,19 +61,19 @@ if (!proxyGroup) {
   throw new Error('proxy-group is empty')
 }
 
-const targetContent = await loadTargetContent(name, proxyProviderUrl, proxyProviderUserAgent)
+const targetContent = await loadTargetContent(subStoreFileName, proxyProviderUrl, proxyProviderUserAgent)
 
 const current = splitContent(currentContent)
-const prefix = String(proxyPrefix || name).trim()
-const targetState = resolveTargetConfig(targetContent, name, isTrue(proxyDomainDnsConfig))
+const prefix = String(proxyPrefix || subStoreFileName).trim()
+const targetState = resolveTargetConfig(targetContent, subStoreFileName, isTrue(proxyDomainDnsConfig))
 const target = targetState.target
 const targetProxies = targetState.proxies
 const filteredProxies = excludeProxies(targetProxies, proxyExclude)
 if (filteredProxies.length === 0) {
-  throw new Error(`No proxy entries left after proxy-exclude in target file [${name}]`)
+  throw new Error(`No proxy entries left after proxy-exclude in target file [${subStoreFileName}]`)
 }
 
-const managedCacheKey = createCacheKey('managed', name, prefix)
+const managedCacheKey = createCacheKey('managed', subStoreFileName, prefix)
 const previousManagedState = normalizeCacheEntry(readCacheEntry(managedCacheKey))
 resetManagedContent(current.lines, prefix, previousManagedState)
 
@@ -98,7 +100,7 @@ if (isTrue(proxyDomainDnsConfig)) {
   log('proxy-domain-dns-config is enabled')
   const encryptedDnsServers = targetState.encryptedDnsServers
   if (!encryptedDnsServers.length) {
-    throw new Error(`Target file [${name}] does not contain encrypted-dns-server`)
+    throw new Error(`Target file [${subStoreFileName}] does not contain encrypted-dns-server`)
   }
 
   hostDomains = unique(
@@ -130,7 +132,7 @@ if (isTrue(proxyDomainDnsConfig)) {
 
 writeCacheEntry(managedCacheKey, {
   version: 2,
-  name,
+  name: subStoreFileName,
   prefix,
   updatedAt: new Date().toISOString(),
   proxyNames: renamedProxies.map(proxy => proxy.name),

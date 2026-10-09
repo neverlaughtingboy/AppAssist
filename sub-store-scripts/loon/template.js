@@ -1,14 +1,14 @@
 // Usage:
 // #url=https%3A%2F%2Fexample.com%2Fsubscription.conf
-// #name=sub-file
+// #sub-store-file-name=sub-file
 //
-// Read the Loon subscription config from the Sub-Store file named by `name`
-// first, falling back to `url` when the file read fails or `name` has no value
-// (`user-agent` pairs with `url`). `url` only works with an address the
-// backend can fetch directly: a standalone Sub-Store backend or a raw file
-// link. Sub-Store embedded in a Surge/Loon module only answers sub.store
-// requests that the module intercepts, which script downloads bypass, so use
-// `name` there.
+// Read the Loon subscription config from the Sub-Store file named by
+// `sub-store-file-name` first, falling back to `url` when the file read fails
+// or `sub-store-file-name` has no value (`user-agent` pairs with `url`). `url`
+// only works with an address the backend can fetch directly: a standalone
+// Sub-Store backend or a raw file link. Sub-Store embedded in a Surge/Loon
+// module only answers sub.store requests that the module intercepts, which
+// script downloads bypass, so use `sub-store-file-name` there.
 //
 // Extract the doh-server list from [General] and the server domain of every
 // [Proxy] entry, then fill the Loon plugin template in the current file:
@@ -29,10 +29,11 @@ const providerUrl =
 const providerUserAgent =
   args['user-agent'] ?? args.userAgent ??
   args['proxy-provider-user-agent'] ?? args.proxyProviderUserAgent
-const providerFileName = args.name ?? args.fileName
+const providerFileName =
+  args['sub-store-file-name'] ?? args.subStoreFileName
 
 if (!providerUrl && !providerFileName) {
-  throw new Error('Missing required argument: url or name')
+  throw new Error('Missing required argument: url or sub-store-file-name')
 }
 
 const currentContent = $content ?? $files?.[0]
