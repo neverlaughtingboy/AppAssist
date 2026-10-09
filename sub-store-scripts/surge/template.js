@@ -1,15 +1,12 @@
 // Usage:
-// #sub-store-file-name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group-url=https%3A%2F%2Fraw.githubusercontent.com%2Fuser%2Frepo%2Fmain%2Fnexitally-proxy-groups.txt&remain-proxy-group=remaining&proxy-domain-dns-config=true&proxy-domain-dns-detect=true
+// #sub-store-file-name=target-file&proxy-provider-url=https%3A%2F%2Fexample.com%2Fsurge.conf&proxy-provider-user-agent=Surge%20Mac&proxy-prefix=airport&proxy-exclude=🇸🇬|新加坡|坡|狮城|SG|Singapore&proxy-group-url=https%3A%2F%2Fraw.githubusercontent.com%2Fuser%2Frepo%2Fmain%2Fnexitally-proxy-groups.txt&remain-proxy-group=remaining
 //
 // Read a Surge conf from the Sub-Store file named by `sub-store-file-name`
 // first, falling back to `proxy-provider-url` when the file read fails or
 // `sub-store-file-name` has no value (`proxy-provider-user-agent` pairs with
-// `proxy-provider-url`). Copy proxies
-// from its [Proxy] section into the current file, and optionally add DNS Host
-// rules and always-real-ip entries for proxy server domains, plus DIRECT rules
-// for encrypted DNS server domains.
-// Lines the script overwrites are snapshotted in the managed cache so the next
-// run restores the originals instead of deleting them.
+// `proxy-provider-url`). Copy proxies from its [Proxy] section into the current
+// file. Lines the script overwrites are snapshotted in the managed cache so
+// the next run restores the originals instead of deleting them.
 //
 // `proxy-provider-url` only works with an address the backend can fetch
 // directly: a standalone Sub-Store backend or e.g. a raw.githubusercontent.com
@@ -32,14 +29,6 @@ const proxyGroupInline = args['proxy-group'] ?? args.proxyGroup
 const proxyGroupUrl = args['proxy-group-url'] ?? args.proxyGroupUrl
 const legacyProxyGroupFile = args['proxy-group-file'] ?? args.proxyGroupFile
 const remainProxyGroup = args['remain-proxy-group'] ?? args.remainProxyGroup
-const proxyDomainDnsConfig =
-  args['proxy-domain-dns-config'] ?? args.proxyDomainDnsConfig
-const proxyDomainDnsDetect =
-  args['proxy-domain-dns-detect'] ?? args.proxyDomainDnsDetect
-const proxyDomainDnsDetectTimeout =
-  args['proxy-domain-dns-detect-timeout'] ?? args.proxyDomainDnsDetectTimeout
-const proxyDomainDnsDetectConcurrency =
-  args['proxy-domain-dns-detect-concurrency'] ?? args.proxyDomainDnsDetectConcurrency
 
 if (!subStoreFileName) {
   throw new Error('Missing required argument: sub-store-file-name')
@@ -65,7 +54,7 @@ const targetContent = await loadTargetContent(subStoreFileName, proxyProviderUrl
 
 const current = splitContent(currentContent)
 const prefix = String(proxyPrefix || subStoreFileName).trim()
-const targetState = resolveTargetConfig(targetContent, subStoreFileName, isTrue(proxyDomainDnsConfig))
+const targetState = resolveTargetConfig(targetContent, subStoreFileName)
 const target = targetState.target
 const targetProxies = targetState.proxies
 const filteredProxies = excludeProxies(targetProxies, proxyExclude)
@@ -91,56 +80,12 @@ log(`Apply ${proxyGroupRules.length} proxy-group rule(s)`)
 const groupedProxyNames = applyProxyGroupRules(current.lines, proxyGroupRules, renamedProxies)
 applyRemainProxyGroup(current.lines, remainProxyGroup, renamedProxies, groupedProxyNames)
 
-let hostDomains = []
-let dnsRuleDomains = []
-let hostEntries = []
-let ruleEntries = []
-let alwaysRealIpEntry = null
-if (isTrue(proxyDomainDnsConfig)) {
-  log('proxy-domain-dns-config is enabled')
-  const encryptedDnsServers = targetState.encryptedDnsServers
-  if (!encryptedDnsServers.length) {
-    throw new Error(`Target file [${subStoreFileName}] does not contain encrypted-dns-server`)
-  }
-
-  hostDomains = unique(
-    filteredProxies
-      .map(proxy => extractProxyDomain(proxy.value))
-      .filter(Boolean)
-      .map(domain => domain.toLowerCase())
-  )
-
-  log(`Append or update ${hostDomains.length} host DNS rule(s)`)
-  const hostDnsServers = await resolveHostDnsServers(hostDomains, encryptedDnsServers, {
-    detect: isTrue(proxyDomainDnsDetect),
-    timeout: parsePositiveInteger(proxyDomainDnsDetectTimeout, 2000),
-    concurrency: parsePositiveInteger(proxyDomainDnsDetectConcurrency, 5),
-  })
-  hostEntries = upsertHostRules(current.lines, hostDnsServers)
-
-  dnsRuleDomains = unique(
-    encryptedDnsServers
-      .map(server => extractDnsServerDomain(server))
-      .filter(Boolean)
-  )
-  log(`Append or update ${dnsRuleDomains.length} DNS server direct rule(s)`)
-  ruleEntries = upsertDirectRules(current.lines, dnsRuleDomains)
-
-  log(`Append ${dnsRuleDomains.length} DNS server domain(s) to always-real-ip`)
-  alwaysRealIpEntry = upsertAlwaysRealIp(current.lines, dnsRuleDomains)
-}
-
 writeCacheEntry(managedCacheKey, {
-  version: 2,
+  version: 3,
   name: subStoreFileName,
   prefix,
   updatedAt: new Date().toISOString(),
   proxyNames: renamedProxies.map(proxy => proxy.name),
-  hostDomains,
-  dnsRuleDomains,
-  hostEntries,
-  ruleEntries,
-  alwaysRealIp: alwaysRealIpEntry,
 })
 
 $content = current.lines.join(current.eol)
@@ -228,15 +173,15 @@ async function downloadText(url, userAgent, label) {
   return String(result ?? '')
 }
 
-function resolveTargetConfig(content, targetName, requireEncryptedDns) {
-  const fresh = parseTargetConfig(content, requireEncryptedDns)
+function resolveTargetConfig(content, targetName) {
+  const fresh = parseTargetConfig(content)
   if (fresh.valid) return fresh
 
   log(`Target file [${targetName}] is invalid: ${fresh.reason}`)
   throw new Error(`Target file [${targetName}] is invalid: ${fresh.reason}`)
 }
 
-function parseTargetConfig(content, requireEncryptedDns) {
+function parseTargetConfig(content) {
   const text = String(content ?? '')
   if (!text.trim()) {
     return { valid: false, reason: 'empty content' }
@@ -248,22 +193,18 @@ function parseTargetConfig(content, requireEncryptedDns) {
     return { valid: false, reason: 'no proxy entries in [Proxy] section' }
   }
 
-  const encryptedDnsServers = getCommaValues(getConfigValue(target.lines, 'encrypted-dns-server'))
-  const encryptedDnsServer = encryptedDnsServers[0] || ''
-  if (requireEncryptedDns && encryptedDnsServers.length === 0) {
-    return { valid: false, reason: 'missing encrypted-dns-server' }
-  }
-
   return {
     valid: true,
     target,
     proxies,
-    encryptedDnsServer,
-    encryptedDnsServers,
   }
 }
 
 function resetManagedContent(lines, prefix, previousState) {
+  // The DNS-related fields below are legacy: they were written by script
+  // versions that managed Host/Rule/always-real-ip content directly. They are
+  // still restored here so one run of this script cleans them out of files
+  // processed by those older versions; new cache entries never contain them.
   const previousProxyNames = new Set(
     Array.isArray(previousState?.proxyNames) ? previousState.proxyNames : []
   )
@@ -553,192 +494,6 @@ function insertProxyNamesIntoParsedLine(lines, index, parsed, names) {
   lines[index] = `${parsed.indent}${parsed.key} = ${tokens.join(', ')}${parsed.comment ? ` ${parsed.comment}` : ''}`
 }
 
-async function resolveHostDnsServers(domains, dnsServers, options) {
-  const defaultDnsServer = dnsServers[0]
-  const results = new Map()
-  if (domains.length === 0) return results
-
-  const dohServers = unique(dnsServers.filter(isDohServer))
-  const shouldDetect =
-    options.detect &&
-    dohServers.length > 0 &&
-    typeof ProxyUtils !== 'undefined' &&
-    typeof ProxyUtils?.doh === 'function'
-
-  if (!shouldDetect) {
-    if (options.detect && dohServers.length > 0) {
-      log('ProxyUtils.doh is unavailable, use all encrypted-dns-server for host DNS rules')
-    } else {
-      log(`Use all ${dnsServers.length} encrypted-dns-server(s) for host DNS rules`)
-    }
-    domains.forEach(domain => results.set(domain, dnsServers))
-    return results
-  }
-
-  log(
-    `Detect DoH availability for ${domains.length} domain(s), ${dohServers.length} DoH server(s), concurrency ${options.concurrency}, timeout ${options.timeout}ms`
-  )
-
-  const cache = new Map()
-  const checks = await mapWithConcurrency(
-    domains.flatMap(domain => dohServers.map(dnsServer => ({ domain, dnsServer }))),
-    options.concurrency,
-    async ({ domain, dnsServer }) => ({
-      domain,
-      dnsServer,
-      available: await canResolveDomainWithDoh(domain, dnsServer, {
-        timeout: options.timeout,
-        cache,
-      }),
-    })
-  )
-
-  const availableByDomain = new Map(domains.map(domain => [domain, []]))
-  for (const check of checks) {
-    if (check.available) {
-      availableByDomain.get(check.domain).push(check.dnsServer)
-    }
-  }
-
-  for (const domain of domains) {
-    const availableDnsServers = availableByDomain.get(domain)
-
-    if (availableDnsServers.length === 0) {
-      log(`No DoH server resolved ${domain}, fallback to first encrypted-dns-server`)
-      results.set(domain, [defaultDnsServer])
-    } else {
-      results.set(domain, availableDnsServers)
-    }
-  }
-
-  return results
-}
-
-async function canResolveDomainWithDoh(domain, dnsServer, options) {
-  const key = `${dnsServer}|${domain}`
-  if (options.cache.has(key)) return options.cache.get(key)
-
-  const types = ['A', 'AAAA']
-  let lastError = ''
-  for (const type of types) {
-    try {
-      const response = await ProxyUtils.doh({
-        url: dnsServer,
-        domain,
-        type,
-        timeout: options.timeout,
-      })
-      if (hasDnsAnswer(response)) {
-        options.cache.set(key, true)
-        return true
-      }
-    } catch (e) {
-      lastError = e.message ?? String(e)
-    }
-  }
-
-  if (lastError) {
-    log(`DoH ${dnsServer} failed to resolve ${domain}: ${lastError}`)
-  }
-  options.cache.set(key, false)
-  return false
-}
-
-function hasDnsAnswer(response) {
-  return Array.isArray(response?.answers) &&
-    response.answers.some(answer => {
-      const type = String(answer?.type ?? '').toUpperCase()
-      return (type === 'A' || type === 'AAAA') && Boolean(answer?.data)
-    })
-}
-
-function isDohServer(value) {
-  return /^https?:\/\//i.test(String(value || '').trim())
-}
-
-async function mapWithConcurrency(values, concurrency, mapper) {
-  const results = new Array(values.length)
-  let nextIndex = 0
-  const workerCount = Math.max(1, Math.min(concurrency, values.length))
-
-  await Promise.all(
-    Array.from({ length: workerCount }, async () => {
-      while (nextIndex < values.length) {
-        const index = nextIndex++
-        results[index] = await mapper(values[index], index)
-      }
-    })
-  )
-
-  return results
-}
-
-function upsertHostRules(lines, domainDnsServers) {
-  const entries = []
-  if (domainDnsServers.size === 0) return entries
-
-  const bounds = ensureSection(lines, 'Host')
-  const existingHostLines = new Map()
-
-  for (let index = bounds.start + 1; index < bounds.end; index++) {
-    const parsed = parseKeyValueLine(lines[index])
-    if (!parsed) continue
-    existingHostLines.set(parsed.key.toLowerCase(), index)
-  }
-
-  const newLines = []
-  for (const [domain, dnsServers] of domainDnsServers) {
-    const line = `${domain} = server:${dnsServers.join(',')}`
-    const existingIndex = existingHostLines.get(domain)
-    if (existingIndex === undefined) {
-      newLines.push(line)
-      entries.push({ domain, written: line, original: null })
-    } else {
-      entries.push({ domain, written: line, original: lines[existingIndex] })
-      lines[existingIndex] = line
-    }
-  }
-
-  if (newLines.length > 0) {
-    insertSectionLines(lines, 'Host', newLines)
-  }
-  return entries
-}
-
-function upsertDirectRules(lines, domains) {
-  const entries = []
-  if (domains.length === 0) return entries
-
-  const bounds = ensureSection(lines, 'Rule')
-  const existingRuleIndexes = new Map()
-
-  for (let index = bounds.start + 1; index < bounds.end; index++) {
-    const rule = parseRuleLine(lines[index])
-    if (!rule || rule.type !== 'DOMAIN') continue
-    existingRuleIndexes.set(rule.value.toLowerCase(), index)
-  }
-
-  const newLines = []
-  for (const domain of domains) {
-    const line = `DOMAIN,${domain},DIRECT`
-    const existingIndex = existingRuleIndexes.get(domain)
-    if (existingIndex === undefined) {
-      newLines.push(line)
-      entries.push({ domain, written: line, original: null })
-    } else {
-      entries.push({ domain, written: line, original: lines[existingIndex] })
-      lines[existingIndex] = line
-    }
-  }
-
-  if (newLines.length > 0) {
-    // Surge matches rules top-down and a trailing FINAL swallows appended
-    // rules, so new direct rules go right below the [Rule] header
-    lines.splice(bounds.start + 1, 0, ...newLines)
-  }
-  return entries
-}
-
 function parseRuleLine(line) {
   if (!line || /^\s*[#;]/.test(line)) return null
 
@@ -747,29 +502,6 @@ function parseRuleLine(line) {
   if (parts.length < 2 || !parts[0]) return null
 
   return { type: parts[0].toUpperCase(), value: parts[1] }
-}
-
-function upsertAlwaysRealIp(lines, domains) {
-  if (domains.length === 0) return null
-
-  const bounds = ensureSection(lines, 'General')
-  for (let index = bounds.start + 1; index < bounds.end; index++) {
-    const parsed = parseKeyValueLine(lines[index])
-    if (!parsed || parsed.key.toLowerCase() !== 'always-real-ip') continue
-
-    const existingValues = getCommaValues(parsed.value)
-    const existingSet = new Set(existingValues.map(value => value.toLowerCase()))
-    if (domains.every(domain => existingSet.has(domain))) return null
-
-    const original = lines[index]
-    const merged = unique([...existingValues, ...domains])
-    lines[index] = `${parsed.indent}${parsed.key} = ${merged.join(', ')}${parsed.comment ? ` ${parsed.comment}` : ''}`
-    return { written: lines[index], original }
-  }
-
-  const line = `always-real-ip = ${domains.join(', ')}`
-  insertSectionLines(lines, 'General', [line])
-  return { written: line, original: null }
 }
 
 function getProxyEntries(lines) {
@@ -789,62 +521,6 @@ function getProxyEntries(lines) {
     })
   }
   return proxies
-}
-
-function extractProxyDomain(value) {
-  const tokens = splitCommaValues(value).map(token => token.trim()).filter(Boolean)
-  if (tokens.length < 2) return ''
-
-  const protocol = stripQuotes(tokens[0]).trim().toLowerCase()
-  if (/^(direct|reject|reject-drop|reject-tinygif)$/i.test(protocol)) return ''
-
-  let server = tokens[1]
-  const keyValueServer = tokens.find(token => /^(server|host|hostname)\s*=/i.test(token.trim()))
-  if (/^\w[\w-]*\s*=/.test(server) && keyValueServer) {
-    server = keyValueServer.replace(/^[^=]+=/, '')
-  }
-
-  server = normalizeDomain(server)
-  return isValidDomain(server) ? server : ''
-}
-
-function extractDnsServerDomain(value) {
-  const withoutScheme = stripQuotes(String(value ?? '').trim()).replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
-  const host = withoutScheme.split(/[/?#]/)[0]
-  const domain = normalizeDomain(host.split(':')[0])
-  return isValidDomain(domain) ? domain.toLowerCase() : ''
-}
-
-function normalizeDomain(value) {
-  let domain = stripQuotes(String(value || '').trim())
-  domain = domain.replace(/^\[/, '').replace(/\]$/, '')
-  domain = domain.replace(/\.$/, '')
-  return domain
-}
-
-function isValidDomain(domain) {
-  if (!domain) return false
-  if (domain.length > 253) return false
-  if (typeof ProxyUtils !== 'undefined' && ProxyUtils?.isIP?.(domain)) return false
-  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(domain)) return false
-  if (/[:/?#@*_\s]/.test(domain)) return false
-  if (!domain.includes('.')) return false
-
-  return domain
-    .split('.')
-    .every(label =>
-      /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label)
-    )
-}
-
-function getConfigValue(lines, key) {
-  const keyLower = key.toLowerCase()
-  for (const line of lines) {
-    const parsed = parseKeyValueLine(line)
-    if (!parsed) continue
-    if (parsed.key.toLowerCase() === keyLower) return parsed.value
-  }
-  return ''
 }
 
 function getCommaValues(value) {
@@ -1026,15 +702,6 @@ function escapeProxyName(name) {
 
 function unique(values) {
   return [...new Set(values)]
-}
-
-function isTrue(value) {
-  return /^(true|1|yes|on)$/i.test(String(value ?? '').trim())
-}
-
-function parsePositiveInteger(value, fallback) {
-  const parsed = Number.parseInt(String(value ?? '').trim(), 10)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
 function createRegExp(pattern) {
